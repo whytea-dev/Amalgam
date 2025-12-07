@@ -963,6 +963,7 @@
     <ClCompile Include="src\Hooks\CBaseAnimating_UpdateClientSideAnimation.cpp" />
     <ClCompile Include="src\Hooks\CBaseEntity_BaseInterpolatePart1.cpp" />
     <ClCompile Include="src\Hooks\CBaseEntity_EstimateAbsVelocity.cpp" />
+    <ClCompile Include="src\Hooks\CBasePlayer_CalcObserverView.cpp" />
     <ClCompile Include="src\Hooks\CInput_ValidateUserCmd.cpp" />
     <ClCompile Include="src\Hooks\CTFRocketLauncher_CheckReloadMisfire.cpp" />
     <ClCompile Include="src\Hooks\CTFPlayer_FireBullet.cpp" />
@@ -970,7 +971,7 @@
     <ClCompile Include="src\Hooks\CBaseEntity_SetAbsVelocity.cpp" />
     <ClCompile Include="src\Hooks\CBaseEntity_WorldSpaceCenter.cpp" />
     <ClCompile Include="src\Hooks\CBaseHudChatLine_InsertAndColorizeText.cpp" />
-    <ClCompile Include="src\Hooks\CBasePlayer_CalcPlayerView.cpp" />
+    <ClCompile Include="src\Hooks\CBasePlayer_CalcView.cpp" />
     <ClCompile Include="src\Hooks\CBasePlayer_CalcViewModelView.cpp" />
     <ClCompile Include="src\Hooks\CBasePlayer_ItemPostFrame.cpp" />
     <ClCompile Include="src\Hooks\CBaseViewModel_ShouldFlipViewModel.cpp" />
@@ -991,6 +992,8 @@
     <ClCompile Include="src\Hooks\CMatchInviteNotification_OnTick.cpp" />
     <ClCompile Include="src\Hooks\CMaterial_Uncache.cpp" />
     <ClCompile Include="src\Hooks\CTFWeaponBase_CanFireRandomCriticalShot.cpp" />
+    <ClCompile Include="src\Hooks\CTFPlayer_GetMinFOV.cpp" />
+    <ClCompile Include="src\Hooks\CWeaponMedigun_PrimaryAttack.cpp" />
     <ClCompile Include="src\Hooks\IEngineTrace_SetTraceEntity.cpp" />
     <ClCompile Include="src\Hooks\CNetChannel_SendDatagram.cpp" />
     <ClCompile Include="src\Hooks\CNetChannel_SendNetMsg.cpp" />
@@ -1042,6 +1045,7 @@
     <ClCompile Include="src\Hooks\IEngineVGui_Paint.cpp" />
     <ClCompile Include="src\Hooks\Host_IsSecureServerAllowed.cpp" />
     <ClCompile Include="src\Hooks\CInput_GetUserCmd.cpp" />
+    <ClCompile Include="src\Hooks\IMaterialSystem_FindTexture.cpp" />
     <ClCompile Include="src\Hooks\IMatSystemSurface_OnScreenSizeChanged.cpp" />
     <ClCompile Include="src\Hooks\IPanel_PaintTraverse.cpp" />
     <ClCompile Include="src\Hooks\ISteamFriends_GetFriendPersonaName.cpp" />
@@ -1074,8 +1078,8 @@
     <ClCompile Include="src\SDK\Helpers\Fonts\Fonts.cpp" />
     <ClCompile Include="src\SDK\Helpers\TraceFilters\TraceFilters.cpp" />
     <ClCompile Include="src\SDK\SDK.cpp" />
-    <ClCompile Include="src\Utils\ConVars\ConVars.cpp" />
-    <ClCompile Include="src\Utils\CrashLog\CrashLog.cpp" />
+    <ClCompile Include="src\SDK\Helpers\ConVars\ConVars.cpp" />
+    <ClCompile Include="src\Utils\ExceptionHandler\ExceptionHandler.cpp" />
     <ClCompile Include="src\Utils\Hooks\Hooks.cpp" />
     <ClCompile Include="src\Utils\Interfaces\Interfaces.cpp" />
     <ClCompile Include="src\Utils\KeyHandler\KeyHandler.cpp" />
@@ -1252,9 +1256,12 @@
     <ClInclude Include="src\SDK\Definitions\Interfaces\CTFGameRules.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\CTFGCClientSystem.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\CHLClient.h" />
+    <ClInclude Include="src\SDK\Definitions\Interfaces\IFileSystem.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IGameMovement.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IInput.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IKeyValuesSystem.h" />
+    <ClInclude Include="src\SDK\Definitions\Interfaces\ILocalize.h" />
+    <ClInclude Include="src\SDK\Definitions\Interfaces\IMemAlloc.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IPanel.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IStudioRender.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IUniformRandomStream.h" />
@@ -1273,6 +1280,7 @@
     <ClInclude Include="src\SDK\Definitions\Main\CModel.h" />
     <ClInclude Include="src\SDK\Definitions\Interfaces\IEngineTrace.h" />
     <ClInclude Include="src\SDK\Definitions\Main\CParticleProperty.h" />
+    <ClInclude Include="src\SDK\Definitions\Main\CPredictionCopy.h" />
     <ClInclude Include="src\SDK\Definitions\Misc\CRangeCheckedVar.h" />
     <ClInclude Include="src\SDK\Definitions\Main\CSniperDot.h" />
     <ClInclude Include="src\SDK\Definitions\Main\IAchievementMgr.h" />
@@ -1444,15 +1452,14 @@
     <ClInclude Include="src\SDK\Events\Events.h" />
     <ClInclude Include="src\SDK\Globals.h" />
     <ClInclude Include="src\SDK\Helpers\Draw\Draw.h" />
-    <ClInclude Include="src\SDK\Helpers\Draw\Icons.h" />
     <ClInclude Include="src\SDK\Helpers\Entities\Entities.h" />
     <ClInclude Include="src\SDK\Helpers\Fonts\Fonts.h" />
     <ClInclude Include="src\SDK\Helpers\Particles\Particles.h" />
     <ClInclude Include="src\SDK\Helpers\TraceFilters\TraceFilters.h" />
     <ClInclude Include="src\SDK\SDK.h" />
     <ClInclude Include="src\SDK\Vars.h" />
-    <ClInclude Include="src\Utils\ConVars\ConVars.h" />
-    <ClInclude Include="src\Utils\CrashLog\CrashLog.h" />
+    <ClInclude Include="src\SDK\Helpers\ConVars\ConVars.h" />
+    <ClInclude Include="src\Utils\ExceptionHandler\ExceptionHandler.h" />
     <ClInclude Include="src\Utils\Macros\Macros.h" />
     <ClInclude Include="src\Utils\Hash\FNV1A.h" />
     <ClInclude Include="src\Utils\Hooks\Hooks.h" />

@@ -67,7 +67,7 @@ public:
 	NETVAR(m_hEffectEntity, EHANDLE, "CBaseEntity", "m_hEffectEntity");
 	NETVAR(moveparent, int, "CBaseEntity", "moveparent");
 	NETVAR(m_iParentAttachment, int, "CBaseEntity", "m_iParentAttachment");
-	NETVAR(m_Collision, CCollisionProperty*, "CBaseEntity", "m_Collision");
+	NETVAR_EMBED(m_Collision, CCollisionProperty*, "CBaseEntity", "m_Collision");
 	NETVAR(m_vecMinsPreScaled, Vec3, "CBaseEntity", "m_vecMinsPreScaled");
 	NETVAR(m_vecMaxsPreScaled, Vec3, "CBaseEntity", "m_vecMaxsPreScaled");
 	NETVAR(m_vecMins, Vec3, "CBaseEntity", "m_vecMins");
@@ -91,11 +91,11 @@ public:
 	NETVAR(movetype, int, "CBaseEntity", "movetype");
 	
 	NETVAR_OFF(m_flOldSimulationTime, float, "CBaseEntity", "m_flSimulationTime", 4);
-	NETVAR_OFF(m_flGravity, float, "CTFPlayer", "m_nWaterLevel", -24);
+	NETVAR_OFF(m_flGravity, float, "CTFPlayer", "m_nWaterLevel", -28);
 	NETVAR_OFF(m_MoveType, byte, "CTFPlayer", "m_nWaterLevel", -4);
 	NETVAR_OFF(m_MoveCollide, byte, "CTFPlayer", "m_nWaterLevel", -3);
 	NETVAR_OFF(m_nWaterType, byte, "CTFPlayer", "m_nWaterLevel", 1);
-	NETVAR_OFF(m_Particles, CParticleProperty*, "CBaseEntity", "m_flElasticity", -56);
+	NETVAR_EMBED_OFF(m_Particles, CParticleProperty*, "CBaseEntity", "m_flElasticity", -56);
 	NETVAR_OFF(m_iv_vecVelocity, CInterpolatedVar<Vec3>, "CBaseEntity", "m_iTeamNum", 156);
 	NETVAR_OFF(m_iv_vecOrigin, CInterpolatedVar<Vec3>, "CBaseEntity", "m_flShadowCastDistance", 84);
 	NETVAR_OFF(m_iv_angRotation, CInterpolatedVar<Vec3>, "CBaseEntity", "m_vecOrigin", -128);
@@ -239,8 +239,8 @@ public:
 	{
 		switch (GetClassID())
 		{
-		case ETFClassID::CTFPumpkinBomb:
 		case ETFClassID::CTFGenericBomb:
+		case ETFClassID::CTFPumpkinBomb:
 			return true;
 		}
 		return false;
@@ -265,6 +265,7 @@ public:
 		return false;
 	}
 
+	VIRTUAL(GetPredDescMap, datamap_t*, 15, this);
 	//VIRTUAL(IsPlayer, bool, 132, this);
 	VIRTUAL(IsBaseCombatCharacter, bool, 133, this);
 	//VIRTUAL(IsNPC, bool, 135, this);
@@ -289,10 +290,13 @@ public:
 		return vOut;
 	}
 
+	int GetIntermediateDataSize();
 	Vec3 GetSize();
 	Vec3 GetOffset();
 	Vec3 GetCenter();
 	Vec3 GetRenderCenter();
 	int IsInValidTeam();
 	int SolidMask();
+	int GetHitboxToBase(int nHitbox);
+	int GetBaseToHitbox(int nHitbox);
 };

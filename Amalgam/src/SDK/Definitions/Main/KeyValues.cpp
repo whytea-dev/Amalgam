@@ -10,19 +10,20 @@ MAKE_SIGNATURE(KeyValues_GetSymbolForStringClassic, "engine.dll", "48 89 5C 24 ?
 MAKE_SIGNATURE(KeyValues_GetStringForSymbolClassic, "engine.dll", "40 53 48 83 EC ? 8B D9 FF 15", 0x0);
 MAKE_SIGNATURE(KeyValues_FindKey, "client.dll", "48 8B C4 53 57 41 56", 0x0);
 
-int UnicodeToUTF8(const wchar_t* unicode, char* ansi, int ansiBufferSize)
+static int UnicodeToUTF8(const wchar_t* unicode, char* ansi, int ansiBufferSize)
 {
 	int result = WideCharToMultiByte(CP_UTF8, 0, unicode, -1, ansi, ansiBufferSize, NULL, NULL);
 	ansi[ansiBufferSize - 1] = 0;
 	return result;
 }
 
-int UTF8ToUnicode(const char* ansi, wchar_t* unicode, int unicodeBufferSizeInBytes)
+static int UTF8ToUnicode(const char* ansi, wchar_t* unicode, int unicodeBufferSizeInBytes)
 {
 	int chars = MultiByteToWideChar(CP_UTF8, 0, ansi, -1, unicode, unicodeBufferSizeInBytes / sizeof(wchar_t));
 	unicode[(unicodeBufferSizeInBytes / sizeof(wchar_t)) - 1] = 0;
 	return chars;
 }
+
 
 
 bool KeyValues::LoadFromBuffer(char const* resource_name, const char* buffer, void* file_system, const char* path_id)
@@ -67,6 +68,7 @@ KeyValues *KeyValues::FindKey(const char *keyName, bool bCreate)
 }
 
 
+
 const char* KeyValues::GetName() const
 {
 	return S::KeyValues_GetStringForSymbolClassic.Call<const char*>(m_iKeyName);
@@ -76,6 +78,7 @@ void KeyValues::SetName(const char* setName)
 {
 	m_iKeyName = S::KeyValues_GetSymbolForStringClassic.Call<int>(setName, true);
 }
+
 
 
 int KeyValues::GetInt(const char* keyName, int defaultValue)
@@ -277,7 +280,7 @@ void* KeyValues::GetPtr(const char* keyName, void* defaultValue)
 	return defaultValue;
 }
 
-bool KeyValues::GetBool(const char* keyName, bool defaultValue)
+bool KeyValues::GetBool(const char* keyName, bool defaultValue /*, bool* optGotDefault*/)
 {
 	if (FindKey(keyName))
 	{
@@ -338,6 +341,7 @@ bool KeyValues::IsEmpty(const char* keyName)
 
 	return false;
 }
+
 
 
 void KeyValues::SetWString(const char* keyName, const wchar_t* value)

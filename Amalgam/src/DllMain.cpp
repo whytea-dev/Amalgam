@@ -1,17 +1,16 @@
 #include <Windows.h>
 #include "Core/Core.h"
-#include "Utils/CrashLog/CrashLog.h"
-#include <format>
+#include "Utils/ExceptionHandler/ExceptionHandler.h"
 
 DWORD WINAPI MainThread(LPVOID lpParam)
 {
-	U::CrashLog.Initialize();
+	U::ExceptionHandler.Initialize(lpParam);
 
 	U::Core.Load();
 	U::Core.Loop();
 	U::Core.Unload();
 
-	U::CrashLog.Unload();
+	U::ExceptionHandler.Unload();
 
 	FreeLibraryAndExitThread(static_cast<HMODULE>(lpParam), EXIT_SUCCESS);
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "../../SDK/SDK.h"
-#include <mutex>
 
 #define DEFAULT_TAG 0
 #define IGNORED_TAG (DEFAULT_TAG-1)
@@ -23,7 +22,7 @@ struct ListPlayer
 	bool m_bParty;
 	bool m_bF2P;
 	int m_iLevel;
-	uint64_t m_iParty;
+	int m_iParty;
 };
 
 struct PriorityLabel_t
@@ -36,6 +35,8 @@ struct PriorityLabel_t
 	bool m_bAssignable = true;
 	bool m_bLocked = false; // don't allow it to be removed
 };
+
+Enum(NameType, None = 0, Local = 1 << 0, Friend = 1 << 1, Party = 1 << 2, Player = 1 << 3, Custom = 1 << 4, Privacy = Local | Friend | Party | Player);
 
 class CPlayerlistUtils
 {
@@ -58,8 +59,6 @@ public:
 	bool m_bLoad = true;
 	bool m_bSave = false;
 
-	std::mutex m_mutex;
-
 private:
 	std::vector<int> m_vDummy = {};
 
@@ -67,6 +66,8 @@ public:
 	void Store();
 
 	uint32_t GetAccountID(int iIndex);
+	int GetIndex(uint32_t uAccountID);
+
 	PriorityLabel_t* GetTag(int iID);
 	int GetTag(const std::string& sTag);
 	inline int TagToIndex(int iTag)
@@ -112,7 +113,10 @@ public:
 	bool IsPrioritized(uint32_t uAccountID);
 	bool IsPrioritized(int iIndex);
 
+	int GetNameType(int iIndex);
+	int GetNameType(uint32_t uAccountID);
 	const char* GetPlayerName(int iIndex, const char* sDefault, int* pType = nullptr);
+	const char* GetPlayerName(uint32_t uAccountID, const char* sDefault, int* pType = nullptr);
 
 	std::vector<int>& GetPlayerTags(uint32_t uAccountID) { return m_mPlayerTags.contains(uAccountID) ? m_mPlayerTags[uAccountID] : m_vDummy; }
 	std::string* GetPlayerAlias(uint32_t uAccountID) { return m_mPlayerAliases.contains(uAccountID) ? &m_mPlayerAliases[uAccountID] : nullptr; }

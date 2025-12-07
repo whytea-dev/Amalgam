@@ -3,6 +3,7 @@
 #include "../Utils/Macros/Macros.h"
 #include <windows.h>
 #include <unordered_map>
+#include <map>
 #include <typeinfo>
 
 #define DEFAULT_BIND -1
@@ -263,7 +264,8 @@ namespace Vars
 				FOV, Distance);
 			CVarEnum(Target, "Target", 0b0000001, DROPDOWN_MULTI, nullptr,
 				VA_LIST("Players", "Sentries", "Dispensers", "Teleporters", "Stickies", "NPCs", "Bombs"),
-				Players = 1 << 0, Sentry = 1 << 1, Dispenser = 1 << 2, Teleporter = 1 << 3, Stickies = 1 << 4, NPCs = 1 << 5, Bombs = 1 << 6);
+				Players = 1 << 0, Sentry = 1 << 1, Dispenser = 1 << 2, Teleporter = 1 << 3, Stickies = 1 << 4, NPCs = 1 << 5, Bombs = 1 << 6,
+				Building = Sentry | Dispenser | Teleporter);
 			CVarEnum(Ignore, "Ignore", 0b00000001000, DROPDOWN_MULTI, nullptr,
 				VA_LIST("Friends", "Party", "Unprioritized", "Invulnerable", "Invisible", "Unsimulated", "Dead ringer", "Vaccinator", "Disguised", "Taunting", "Team"),
 				Friends = 1 << 0, Party = 1 << 1, Unprioritized = 1 << 2, Invulnerable = 1 << 3, Invisible = 1 << 4, Unsimulated = 1 << 5, DeadRinger = 1 << 6, Vaccinator = 1 << 7, Disguised = 1 << 8, Taunting = 1 << 9, Team = 1 << 10);
@@ -276,27 +278,31 @@ namespace Vars
 			CVar(FOVCircle, "FOV Circle", true, VISUAL);
 			CVar(NoSpread, "No spread", false);
 
-			CVar(HitscanPeek, "Hitscan peek", 1, NOSAVE | DEBUGVAR, 0, 5);
-			CVar(PeekDTOnly, "Peek DT only", true, NOSAVE | DEBUGVAR);
+			CVarEnum(AimHoldsFire, "Aim holds fire", 2, NOSAVE | DEBUGVAR, nullptr,
+				VA_LIST("False", "Minigun only", "Always"),
+				False, MinigunOnly, Always);
 			CVar(NoSpreadOffset, "No spread offset", 0.f, NOSAVE | DEBUGVAR | SLIDER_PRECISION, -1.f, 1.f, 0.1f);
 			CVar(NoSpreadAverage, "No spread average", 5, NOSAVE | DEBUGVAR | SLIDER_MIN, 1, 25);
 			CVar(NoSpreadInterval, "No spread interval", 0.1f, NOSAVE | DEBUGVAR | SLIDER_MIN, 0.05f, 5.f, 0.1f, "%gs");
 			CVar(NoSpreadBackupInterval, "No spread backup interval", 2.f, NOSAVE | DEBUGVAR | SLIDER_MIN, 2.f, 10.f, 0.1f, "%gs");
-			CVarEnum(AimHoldsFire, "Aim holds fire", 2, NOSAVE | DEBUGVAR, nullptr,
-				VA_LIST("False", "Minigun only", "Always"),
-				False, MinigunOnly, Always);
 		SUBNAMESPACE_END(Global);
 
 		SUBNAMESPACE_BEGIN(Hitscan)
 			CVarEnum(Hitboxes, VA_LIST("Hitboxes", "Hitscan hitboxes"), 0b000111, DROPDOWN_MULTI, nullptr,
-				VA_LIST("Head", "Body", "Pelvis", "Arms", "Legs", "##Divider", "Bodyaim if lethal"),
-				Head = 1 << 0, Body = 1 << 1, Pelvis = 1 << 2, Arms = 1 << 3, Legs = 1 << 4, BodyaimIfLethal = 1 << 5);
+				VA_LIST("Head", "Body", "Pelvis", "Arms", "Legs", "##Divider", "Bodyaim if lethal", "Headshot only"),
+				Head = 1 << 0, Body = 1 << 1, Pelvis = 1 << 2, Arms = 1 << 3, Legs = 1 << 4, BodyaimIfLethal = 1 << 5, HeadshotOnly = 1 << 6);
+			CVarValues(MultipointHitboxes, "Multipoint hitboxes", 0b00000, DROPDOWN_MULTI, "All",
+				VA_LIST("Head", "Body", "Pelvis", "Arms", "Legs"));
 			CVarEnum(Modifiers, VA_LIST("Modifiers", "Hitscan modifiers"), 0b0100000, DROPDOWN_MULTI, nullptr,
 				VA_LIST("Tapfire", "Wait for headshot", "Wait for charge", "Scoped only", "Auto scope", "Auto rev minigun", "Extinguish team"),
 				Tapfire = 1 << 0, WaitForHeadshot = 1 << 1, WaitForCharge = 1 << 2, ScopedOnly = 1 << 3, AutoScope = 1 << 4, AutoRev = 1 << 5, ExtinguishTeam = 1 << 6);
-			CVar(PointScale, "Point scale", 0.f, SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 100.f, 5.f, "%g%%");
+			CVar(MultipointScale, "Multipoint scale", 0.f, SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 100.f, 5.f, "%g%%");
 			CVar(TapfireDistance, "Tapfire distance", 1000.f, SLIDER_MIN | SLIDER_PRECISION, 250.f, 1000.f, 50.f);
 
+			CVarEnum(PeekCheck, "Peek check", 1, NOSAVE | DEBUGVAR, nullptr,
+				VA_LIST("Off", "Doubletap only", "Always"),
+				Off, DoubletapOnly, Always);
+			CVar(PeekAmount, "Peek amount", 1, NOSAVE | DEBUGVAR, 0, 5);
 			CVar(BoneSizeSubtract, "Bone size subtract", 1.f, NOSAVE | DEBUGVAR | SLIDER_MIN, 0.f, 4.f, 0.25f);
 			CVar(BoneSizeMinimumScale, "Bone size minimum scale", 1.f, NOSAVE | DEBUGVAR | SLIDER_CLAMP, 0.f, 1.f, 0.1f);
 		SUBNAMESPACE_END(HITSCAN);
@@ -354,13 +360,13 @@ namespace Vars
 			CVar(HuntsmanAddLow, "Huntsman add low", 0.f, NOSAVE | DEBUGVAR | SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 20.f);
 			CVar(HuntsmanClamp, "Huntsman clamp", 5.f, NOSAVE | DEBUGVAR | SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 10.f, 0.5f);
 			CVar(HuntsmanPullPoint, "Huntsman pull point", false, NOSAVE | DEBUGVAR);
-			CVar(SplashPoints, "Splash points", 100, NOSAVE | DEBUGVAR | SLIDER_MIN, 1, 400, 5);
-			CVar(SplashGrates, "Splash grates", true, NOSAVE | DEBUGVAR);
-			CVar(SplashRotateX, "Splash Rx", 0.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, -1.f, 360.f);
-			CVar(SplashRotateY, "Splash Ry", -1.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, -1.f, 360.f);
-			CVar(SplashNthRoot, "Splash Nth root", 1.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, 0.5f, 2.f, 0.1f);
+
+			CVar(SplashPointsDirect, "Direct splash points", 100, NOSAVE | DEBUGVAR | SLIDER_MIN, 0, 400, 5);
+			CVar(SplashPointsArc, "Arc splash points", 100, NOSAVE | DEBUGVAR | SLIDER_MIN, 0, 400, 5);
 			CVar(SplashCountDirect, "Direct splash count", 100, NOSAVE | DEBUGVAR | SLIDER_MIN, 1, 100);
 			CVar(SplashCountArc, "Arc splash count", 5, NOSAVE | DEBUGVAR | SLIDER_MIN, 1, 100);
+			CVar(SplashRotateX, "Splash Rx", -1.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, -1.f, 360.f);
+			CVar(SplashRotateY, "Splash Ry", -1.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, -1.f, 360.f);
 			CVar(SplashTraceInterval, "Splash trace interval", 10, NOSAVE | DEBUGVAR, 1, 10);
 			CVar(SplashNormalSkip, "Splash normal skip", 1, NOSAVE | DEBUGVAR | SLIDER_MIN, 1, 10);
 			CVarEnum(SplashMode, "Splash mode", 0, NOSAVE | DEBUGVAR, nullptr,
@@ -369,6 +375,8 @@ namespace Vars
 			CVarEnum(RocketSplashMode, "Rocket splash mode", 0, NOSAVE | DEBUGVAR, nullptr,
 				VA_LIST("Regular", "Special light", "Special heavy"),
 				Regular, SpecialLight, SpecialHeavy);
+			CVar(SplashGrates, "Splash grates", true, NOSAVE | DEBUGVAR);
+
 			CVar(DeltaCount, "Delta count", 5, NOSAVE | DEBUGVAR, 1, 5);
 			CVarEnum(DeltaMode, "Delta mode", 0, NOSAVE | DEBUGVAR, nullptr,
 				VA_LIST("Average", "Max"),
@@ -396,6 +404,8 @@ namespace Vars
 				None, PrioritizeTeam, PrioritizeFriends, FriendsOnly);
 			CVar(AutoHeal, "Auto heal", false);
 			CVar(AutoArrow, "Auto arrow", false);
+			CVar(AutoRepair, "Auto repair", false);
+			CVar(AutoSandvich, "Auto sandvich", false);
 			CVar(AutoVaccinator, "Auto vaccinator", false);
 			CVar(ActivateOnVoice, "Activate on voice", false);
 
@@ -594,9 +604,9 @@ namespace Vars
 				VA_LIST("World", "Sky", "Prop", "Particle", "Fog"),
 				World = 1 << 0, Sky = 1 << 1, Prop = 1 << 2, Particle = 1 << 3, Fog = 1 << 4);
 			CVarValues(SkyboxChanger, "Skybox changer", std::string("Off"), VISUAL | DROPDOWN_CUSTOM, nullptr,
-				VA_LIST("Off", "sky_tf2_04", "sky_upward", "sky_dustbowl_01", "sky_goldrush_01", "sky_granary_01", "sky_well_01", "sky_gravel_01", "sky_badlands_01", "sky_hydro_01", "sky_night_01", "sky_nightfall_01", "sky_trainyard_01", "sky_stormfront_01", "sky_morningsnow_01", "sky_alpinestorm_01", "sky_harvest_01", "sky_harvest_night_01", "sky_halloween", "sky_halloween_night_01", "sky_halloween_night2014_01", "sky_island_01", "sky_rainbow_01"));
+				VA_LIST("Off"));
 			CVarValues(WorldTexture, "World texture", std::string("Default"), VISUAL | DROPDOWN_CUSTOM, nullptr,
-				"Default", "Dev", "Camo", "Black", "White", "Flat");
+				"Default", "Dev", "Camo", "Black", "White", "Gray", "Flat");
 			CVar(NearPropFade, "Near prop fade", false, VISUAL);
 			CVar(NoPropFade, "No prop fade", false, VISUAL);
 		SUBNAMESPACE_END(World);
@@ -744,45 +754,42 @@ namespace Vars
 
 		SUBNAMESPACE_BEGIN(Queueing)
 			CVarEnum(ForceRegions, "Force regions", 0b0, DROPDOWN_MULTI, nullptr, // i'm not sure all of these are actually used for tf2 servers
-				VA_LIST("Atlanta", "Chicago", "Texas", "Los Angeles", "Moses Lake", "New York", "Seattle", "Virginia", "##Divider", "Amsterdam", "Frankfurt", "Helsinki", "London", "Madrid", "Paris", "Stockholm", "Vienna", "Warsaw", "##Divider", "Buenos Aires", "Lima", "Santiago", "Sao Paulo", "##Divider", "Bombay", "Chennai", "Dubai", "Hong Kong", "Madras", "Mumbai", "Seoul", "Singapore", "Tokyo", "Sydney", "##Divider", "Johannesburg"),
+				VA_LIST("Atlanta", "Chicago", "Dallas", "Los Angeles", "Seattle", "Virginia", "##Divider", "Amsterdam", "Falkenstein", "Frankfurt", "Helsinki", "London", "Madrid", "Paris", "Stockholm", "Vienna", "Warsaw", "##Divider", "Buenos Aires", "Lima", "Santiago", "Sao Paulo", "##Divider", "Chennai", "Dubai", "Hong Kong", "Mumbai", "Seoul", "Singapore", "Tokyo", "##Divider", "Sydney", "##Divider", "Johannesburg"),
 				// North America
-				DC_ATL = 1 << 0, // Atlanta
-				DC_ORD = 1 << 1, // Chicago
-				DC_DFW = 1 << 2, // Texas
-				DC_LAX = 1 << 3, // Los Angeles
-				DC_EAT = 1 << 4, // Moses Lake
-				DC_JFK = 1 << 5, // New York
-				DC_SEA = 1 << 6, // Seattle
-				DC_IAD = 1 << 7, // Virginia
+				ATL = 1 << 0, // Atlanta
+				ORD = 1 << 1, // Chicago
+				DFW = 1 << 2, // Dallas
+				LAX = 1 << 3, // Los Angeles
+				SEA = 1 << 4, // Seattle (+DC_EAT?)
+				IAD = 1 << 5, // Virginia
 				// Europe
-				DC_AMS = 1 << 8, // Amsterdam
-				DC_FRA = 1 << 9, // Frankfurt
-				DC_HEL = 1 << 10, // Helsinki
-				DC_LHR = 1 << 11, // London
-				DC_MAD = 1 << 12, // Madrid
-				DC_PAR = 1 << 13, // Paris
-				DC_STO = 1 << 14, /*& DC_STO2*/ // Stockholm
-				DC_VIE = 1 << 15, // Vienna
-				DC_WAW = 1 << 16, // Warsaw
+				AMS = 1 << 6, // Amsterdam
+				FSN = 1 << 7, // Falkenstein
+				FRA = 1 << 8, // Frankfurt
+				HEL = 1 << 9, // Helsinki
+				LHR = 1 << 10, // London
+				MAD = 1 << 11, // Madrid
+				PAR = 1 << 12, // Paris
+				STO = 1 << 13, // Stockholm
+				VIE = 1 << 14, // Vienna
+				WAW = 1 << 15, // Warsaw
 				// South America
-				DC_EZE = 1 << 17, // Buenos Aires
-				DC_LIM = 1 << 18, // Lima
-				DC_SCL = 1 << 19, // Santiago
-				DC_GRU = 1 << 20, // Sao Paulo
+				EZE = 1 << 16, // Buenos Aires
+				LIM = 1 << 17, // Lima
+				SCL = 1 << 18, // Santiago
+				GRU = 1 << 19, // Sao Paulo
 				// Asia
-				DC_BOM2 = 1 << 21, // Bombay
-				DC_MAA = 1 << 22, // Chennai
-				DC_DXB = 1 << 23, // Dubai
-				DC_HKG = 1 << 24, // Hong Kong
-				DC_MAA2 = 1 << 25, // Madras
-				DC_BOM = 1 << 26, // Mumbai
-				DC_SEO = 1 << 27, // Seoul
-				DC_SGP = 1 << 28, // Singapore
-				DC_TYO = 1 << 29, // Tokyo
+				MAA = 1 << 20, // Chennai
+				DXB = 1 << 21, // Dubai
+				HKG = 1 << 22, // Hong Kong
+				BOM = 1 << 23, // Mumbai
+				SEO = 1 << 24, // Seoul
+				SGP = 1 << 25, // Singapore
+				TYO = 1 << 26, // Tokyo
 				// Australia
-				DC_SYD = 1 << 30, // Sydney
+				SYD = 1 << 27, // Sydney
 				// Africa
-				DC_JNB = 1 << 31, // Johannesburg
+				JNB = 1 << 28, // Johannesburg
 			);
 			CVar(FreezeQueue, "Freeze queue", false);
 			CVar(AutoCasualQueue, "Auto casual queue", false);

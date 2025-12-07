@@ -149,13 +149,13 @@ namespace ImGui
 		return fmodf(flX, flY) + (flX < 0 ? flY : 0);
 	}
 
-	inline bool IsColorBright(ImColor tColor)
+	inline bool IsColorBright(ImColor tColor, float flValue = 0.686f, float flRed = 0.299f, float flGreen = 0.587f, float flBlue = 0.114f)
 	{
-		return tColor.Value.x + tColor.Value.y + tColor.Value.z > 2.f;
+		return tColor.Value.x * flRed + tColor.Value.y * flGreen + tColor.Value.z * flBlue > flValue;
 	}
-	inline bool IsColorDark(ImColor tColor)
+	inline bool IsColorDark(ImColor tColor, float flValue = 0.313f, float flRed = 0.299f, float flGreen = 0.587f, float flBlue = 0.114f)
 	{
-		return tColor.Value.x + tColor.Value.y + tColor.Value.z < 0.788f;
+		return tColor.Value.x * flRed + tColor.Value.y * flGreen + tColor.Value.z * flBlue < flValue;
 	}
 
 	inline ImVec4 ColorToVec(Color_t tColor)
@@ -361,7 +361,7 @@ namespace ImGui
 		return sText;
 	}
 
-	inline std::string TruncateText(std::string sText, int iPixels, ImFont* pFont = nullptr, std::string sEnd = "...", size_t* pLength = nullptr)
+	inline std::string TruncateText(const std::string& sText, int iPixels, ImFont* pFont = nullptr, const char* sEnd = "...", size_t* pLength = nullptr)
 	{
 		if (sText.empty())
 			return "";
@@ -387,7 +387,7 @@ namespace ImGui
 		return sTruncated;
 	}
 
-	inline std::deque<std::string> WrapText(std::string sText, int iPixels, ImFont* pFont = nullptr)
+	inline std::deque<std::string> WrapText(const std::string& sText, int iPixels, ImFont* pFont = nullptr)
 	{
 		if (sText.empty())
 			return { "" };
@@ -442,20 +442,24 @@ namespace ImGui
 		return vWrapped;
 	}
 
-	inline void FTooltip(const char* sTooltip, bool bCondition = IsItemHovered(), float flWrapWidth = 300, ImVec2* pPosOverride = nullptr, ImVec2* pSizeOverride = nullptr)
+	inline void FTooltip(const char* sTooltip, bool bCondition = IsItemHovered(), float flWrapWidth = 300, ImFont* pFont = F::Render.FontSmall, ImVec2* pPosOverride = nullptr, ImVec2* pSizeOverride = nullptr)
 	{
 		if (bCondition)
 		{
-			PushFont(F::Render.FontSmall);
+			PushFont(pFont);
 
 			ImDrawList* pDrawList = GetForegroundDrawList();
-			ImVec2 vPos = pPosOverride ? *pPosOverride : !vRowSizes.empty() ? vRowSizes.back().m_vPos : ImVec2();
+			ImVec2 vPos = pPosOverride ? *pPosOverride : !vRowSizes.empty() ? vRowSizes.back().m_vPos : ImVec2((GetItemRectMin().x + GetItemRectMax().x) / 2, GetItemRectMax().y);
 			ImVec2 vSize = pSizeOverride ? *pSizeOverride : !vRowSizes.empty() ? vRowSizes.back().m_vSize : ImVec2();
 
 			std::deque<std::string> vWraps = WrapText(sTooltip, H::Draw.Scale(flWrapWidth));
-			ImVec2 vText = { 0, H::Draw.Scale(9) + vWraps.size() * H::Draw.Scale(16) };
+			ImVec2 vText = { 0, H::Draw.Scale(9) };
 			for (auto& sText : vWraps)
-				vText.x = std::max(CalcTextSize(sText.c_str()).x, vText.x);
+			{
+				auto vSize = CalcTextSize(sText.c_str());
+				vText.x = std::max(vSize.x, vText.x);
+				vText.y += vSize.y + H::Draw.Scale(5);
+			}
 			vText.x += GetStyle().WindowPadding.x * 2;
 			if (fmodf(vText.x, 2.f))
 				vText.x += 1;
@@ -1881,7 +1885,7 @@ namespace ImGui
 		if (bTooltip)
 		{
 			vOriginalPos += GetDrawPos();
-			FTooltip(StripDoubleHash(sLabel).c_str(), IsItemHovered(), 300, &vOriginalPos, &vSize);
+			FTooltip(StripDoubleHash(sLabel).c_str(), IsItemHovered(), 300, F::Render.FontSmall, &vOriginalPos, &vSize);
 		}
 
 		return bReturn;
@@ -2005,6 +2009,9 @@ namespace ImGui
 		case VK_CONTROL: return "control";
 		case VK_LCONTROL: return "lcontrol";
 		case VK_RCONTROL: return "rcontrol";
+		case VK_MENU: return "alt";
+		case VK_LMENU: return "lalt";
+		case VK_RMENU: return "ralt";
 		case VK_NUMPAD0: return "num0";
 		case VK_NUMPAD1: return "num1";
 		case VK_NUMPAD2: return "num2";

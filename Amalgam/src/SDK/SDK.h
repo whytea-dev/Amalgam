@@ -2,6 +2,7 @@
 
 #include "Vars.h"
 #include "Globals.h"
+#include "Helpers/ConVars/ConVars.h"
 #include "Helpers/Entities/Entities.h"
 #include "Helpers/Draw/Draw.h"
 #include "Helpers/TraceFilters/TraceFilters.h"
@@ -13,7 +14,6 @@
 #include "../Utils/Interfaces/Interfaces.h"
 #include "../Utils/Hooks/Hooks.h"
 #include "../Utils/Memory/Memory.h"
-#include "../Utils/ConVars/ConVars.h"
 #include "../Utils/KeyHandler/KeyHandler.h"
 #include "../Utils/Hash/FNV1A.h"
 #include "../Utils/Math/Math.h"
@@ -79,6 +79,9 @@ namespace SDK
 	void SetClipboard(const std::string& sString);
 	std::string GetClipboard();
 
+	std::string GetDate();
+	std::string GetTime();
+
 	HWND GetTeamFortressWindow();
 	bool IsGameWindowInFocus();
 
@@ -92,16 +95,16 @@ namespace SDK
 	int SeedFileLineHash(int iSeed, const char* sName, int iAdditionalSeed);
 	int SharedRandomInt(unsigned iSeed, const char* sName, int iMinVal, int iMaxVal, int iAdditionalSeed);
 	void RandomSeed(int iSeed);
-	int RandomInt(int iMinVal = 0, int iMaxVal = 0x7FFF);
+	int RandomInt(int iMinVal = 0, int iMaxVal = VALVE_RAND_MAX);
 	float RandomFloat(float flMinVal = 0.f, float flMaxVal = 1.f);
 
 	bool W2S(const Vec3& vOrigin, Vec3& vScreen, bool bAlways = false);
-	bool IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* pLeft = nullptr, float* pRight = nullptr, float* pTop = nullptr, float* pBottom = nullptr);
-	bool IsOnScreen(CBaseEntity* pEntity, Vec3 vOrigin);
+	bool IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* pLeft = nullptr, float* pRight = nullptr, float* pTop = nullptr, float* pBottom = nullptr, bool bAll = false);
+	bool IsOnScreen(CBaseEntity* pEntity, Vec3 vOrigin, bool bAll = false);
 	bool IsOnScreen(CBaseEntity* pEntity, bool bShouldGetOwner = true);
 
-	void Trace(const Vec3& vecStart, const Vec3& vecEnd, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace);
-	void TraceHull(const Vec3& vecStart, const Vec3& vecEnd, const Vec3& vecHullMin, const Vec3& vecHullMax, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace);
+	void Trace(const Vec3& vStart, const Vec3& vEnd, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace);
+	void TraceHull(const Vec3& vStart, const Vec3& vEnd, const Vec3& vHullMin, const Vec3& vHullMax, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace);
 
 	bool VisPos(CBaseEntity* pSkip, const CBaseEntity* pEntity, const Vec3& vFrom, const Vec3& vTo, unsigned int nMask = MASK_SHOT | CONTENTS_GRATE);
 	bool VisPosCollideable(CBaseEntity* pSkip, const CBaseEntity* pEntity, const Vec3& vFrom, const Vec3& vTo, unsigned int nMask = MASK_SHOT | CONTENTS_GRATE);

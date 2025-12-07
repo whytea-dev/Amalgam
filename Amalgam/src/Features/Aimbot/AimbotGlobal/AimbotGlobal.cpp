@@ -35,7 +35,7 @@ bool CAimbotGlobal::PlayerBoneInFOV(CTFPlayer* pTarget, Vec3 vLocalPos, Vec3 vLo
 	float flMinFOV = 180.f;
 	for (int nHitbox = 0; nHitbox < pTarget->GetNumOfHitboxes(); nHitbox++)
 	{
-		if (!IsHitboxValid(H::Entities.GetModel(pTarget->entindex()), nHitbox, iHitboxes))
+		if (!IsHitboxValid(pTarget, nHitbox, iHitboxes))
 			continue;
 
 		Vec3 vCurPos = pTarget->GetHitboxCenter(aBones, nHitbox);
@@ -53,64 +53,74 @@ bool CAimbotGlobal::PlayerBoneInFOV(CTFPlayer* pTarget, Vec3 vLocalPos, Vec3 vLo
 	return flMinFOV < Vars::Aimbot::General::AimFOV.Value;
 }
 
-bool CAimbotGlobal::IsHitboxValid(uint32_t uHash, int nHitbox, int iHitboxes)
+bool CAimbotGlobal::IsHitboxValid(CBaseEntity* pEntity, int nHitbox, int iHitboxes)
 {
-	switch (uHash)
+	switch (pEntity->GetHitboxToBase(nHitbox))
 	{
-	case FNV1A::Hash32Const("models/vsh/player/saxton_hale.mdl"):
-	case FNV1A::Hash32Const("models/vsh/player/hell_hale.mdl"):
-	case FNV1A::Hash32Const("models/vsh/player/santa_hale.mdl"):
-	{
-		switch (nHitbox)
-		{
-		case -1: return true;
-		case HITBOX_SAXTON_HEAD: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Head;
-		case HITBOX_SAXTON_BODY:
-		case HITBOX_SAXTON_THORAX:
-		case HITBOX_SAXTON_CHEST:
-		case HITBOX_SAXTON_UPPER_CHEST:
-		case HITBOX_SAXTON_NECK: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Body;
-		case HITBOX_SAXTON_PELVIS: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Pelvis;
-		case HITBOX_SAXTON_LEFT_UPPER_ARM:
-		case HITBOX_SAXTON_LEFT_FOREARM:
-		case HITBOX_SAXTON_LEFT_HAND:
-		case HITBOX_SAXTON_RIGHT_UPPER_ARM:
-		case HITBOX_SAXTON_RIGHT_FOREARM:
-		case HITBOX_SAXTON_RIGHT_HAND: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Arms;
-		case HITBOX_SAXTON_LEFT_THIGH:
-		case HITBOX_SAXTON_LEFT_CALF:
-		case HITBOX_SAXTON_LEFT_FOOT:
-		case HITBOX_SAXTON_RIGHT_THIGH:
-		case HITBOX_SAXTON_RIGHT_CALF:
-		case HITBOX_SAXTON_RIGHT_FOOT: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Legs;
-		}
-		break;
+	case -1: return true;
+	case HITBOX_HEAD: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Head;
+	case HITBOX_SPINE0:
+	case HITBOX_SPINE1:
+	case HITBOX_SPINE2:
+	case HITBOX_SPINE3: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Body;
+	case HITBOX_PELVIS: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Pelvis;
+	case HITBOX_LEFT_UPPERARM:
+	case HITBOX_LEFT_FOREARM:
+	case HITBOX_LEFT_HAND:
+	case HITBOX_RIGHT_UPPERARM:
+	case HITBOX_RIGHT_FOREARM:
+	case HITBOX_RIGHT_HAND: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Arms;
+	case HITBOX_LEFT_THIGH:
+	case HITBOX_LEFT_CALF:
+	case HITBOX_LEFT_FOOT:
+	case HITBOX_RIGHT_THIGH:
+	case HITBOX_RIGHT_CALF:
+	case HITBOX_RIGHT_FOOT: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Legs;
 	}
-	default:
+
+	return false;
+}
+
+bool CAimbotGlobal::IsHitboxValid(int nHitbox, int iHitboxes)
+{
+	switch (nHitbox)
 	{
-		switch (nHitbox)
-		{
-		case -1: return true;
-		case HITBOX_HEAD: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Head;
-		case HITBOX_BODY:
-		case HITBOX_THORAX:
-		case HITBOX_CHEST:
-		case HITBOX_UPPER_CHEST: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Body;
-		case HITBOX_PELVIS: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Pelvis;
-		case HITBOX_LEFT_UPPER_ARM:
-		case HITBOX_LEFT_FOREARM:
-		case HITBOX_LEFT_HAND:
-		case HITBOX_RIGHT_UPPER_ARM:
-		case HITBOX_RIGHT_FOREARM:
-		case HITBOX_RIGHT_HAND: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Arms;
-		case HITBOX_LEFT_THIGH:
-		case HITBOX_LEFT_CALF:
-		case HITBOX_LEFT_FOOT:
-		case HITBOX_RIGHT_THIGH:
-		case HITBOX_RIGHT_CALF:
-		case HITBOX_RIGHT_FOOT: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Legs;
-		}
+	case BOUNDS_HEAD: return iHitboxes & Vars::Aimbot::Projectile::HitboxesEnum::Head;
+	case BOUNDS_BODY: return iHitboxes & Vars::Aimbot::Projectile::HitboxesEnum::Body;
+	case BOUNDS_FEET: return iHitboxes & Vars::Aimbot::Projectile::HitboxesEnum::Feet;
 	}
+
+	return false;
+}
+
+bool CAimbotGlobal::ShouldMultipoint(CBaseEntity* pEntity, int nHitbox, int iHitboxes)
+{
+	if (Vars::Aimbot::Hitscan::MultipointScale.Value <= 0.f)
+		return false;
+
+	if (!iHitboxes)
+		return true;
+
+	switch (pEntity->GetHitboxToBase(nHitbox))
+	{
+	case HITBOX_HEAD: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Head;
+	case HITBOX_SPINE0:
+	case HITBOX_SPINE1:
+	case HITBOX_SPINE2:
+	case HITBOX_SPINE3:
+	case HITBOX_PELVIS: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Body;
+	case HITBOX_LEFT_UPPERARM:
+	case HITBOX_LEFT_FOREARM:
+	case HITBOX_LEFT_HAND:
+	case HITBOX_RIGHT_UPPERARM:
+	case HITBOX_RIGHT_FOREARM:
+	case HITBOX_RIGHT_HAND: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Arms;
+	case HITBOX_LEFT_THIGH:
+	case HITBOX_LEFT_CALF:
+	case HITBOX_LEFT_FOOT:
+	case HITBOX_RIGHT_THIGH:
+	case HITBOX_RIGHT_CALF:
+	case HITBOX_RIGHT_FOOT: return iHitboxes & Vars::Aimbot::Hitscan::HitboxesEnum::Legs;
 	}
 
 	return false;
@@ -145,7 +155,7 @@ bool CAimbotGlobal::ShouldIgnore(CBaseEntity* pEntity, CTFPlayer* pLocal, CTFWea
 		if (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Friends && H::Entities.IsFriend(pPlayer->entindex())
 			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Party && H::Entities.InParty(pPlayer->entindex())
 			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Invulnerable && pPlayer->IsInvulnerable() && SDK::AttribHookValue(0, "crit_forces_victim_to_laugh", pWeapon) <= 0
-			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Invisible && pPlayer->m_flInvisibility() && pPlayer->m_flInvisibility() >= Vars::Aimbot::General::IgnoreInvisible.Value / 100.f
+			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Invisible && pPlayer->IsInvisible(Vars::Aimbot::General::IgnoreInvisible.Value / 100.f)
 			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::DeadRinger && pPlayer->m_bFeignDeathReady()
 			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Taunting && pPlayer->IsTaunting()
 			|| Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Disguised && pPlayer->InCond(TF_COND_DISGUISED))
@@ -184,14 +194,13 @@ bool CAimbotGlobal::ShouldIgnore(CBaseEntity* pEntity, CTFPlayer* pLocal, CTFWea
 	case ETFClassID::CObjectTeleporter:
 	{
 		auto pBuilding = pEntity->As<CBaseObject>();
+		if (pLocal->m_iTeamNum() == pBuilding->m_iTeamNum())
+			return false;
 
 		if (!(Vars::Aimbot::General::Target.Value & Vars::Aimbot::General::TargetEnum::Sentry) && pBuilding->IsSentrygun()
 			|| !(Vars::Aimbot::General::Target.Value & Vars::Aimbot::General::TargetEnum::Dispenser) && pBuilding->IsDispenser()
 			|| !(Vars::Aimbot::General::Target.Value & Vars::Aimbot::General::TargetEnum::Teleporter) && pBuilding->IsTeleporter())
 			return true;
-
-		if (pLocal->m_iTeamNum() == pEntity->m_iTeamNum())
-			return false;
 
 		auto pOwner = pBuilding->m_hBuilder().Get();
 		if (pOwner)
@@ -242,10 +251,13 @@ bool CAimbotGlobal::ShouldIgnore(CBaseEntity* pEntity, CTFPlayer* pLocal, CTFWea
 
 		return false;
 	}
-	case ETFClassID::CTFPumpkinBomb:
 	case ETFClassID::CTFGenericBomb:
+	case ETFClassID::CTFPumpkinBomb:
 	{
 		if (!(Vars::Aimbot::General::Target.Value & Vars::Aimbot::General::TargetEnum::Bombs))
+			return true;
+
+		if (!ValidBomb(pLocal, pWeapon, pEntity))
 			return true;
 
 		return false;
@@ -262,7 +274,7 @@ int CAimbotGlobal::GetPriority(int iIndex)
 
 bool CAimbotGlobal::FriendlyFire()
 {
-	static auto mp_friendlyfire = U::ConVars.FindVar("mp_friendlyfire");
+	static auto mp_friendlyfire = H::ConVars.FindVar("mp_friendlyfire");
 	return mp_friendlyfire->GetBool();
 }
 
@@ -272,9 +284,7 @@ bool CAimbotGlobal::ShouldAim()
 	{
 	case Vars::Aimbot::General::AimTypeEnum::Plain:
 	case Vars::Aimbot::General::AimTypeEnum::Silent:
-		// for performance reasons, the F::Ticks.m_bDoubletap condition is not a great fix here
-		// and actually properly predicting when shots will be fired should likely be done over this, but it's fine for now
-		if (!G::CanPrimaryAttack && !G::Reloading && !F::Ticks.m_bDoubletap && !F::Ticks.m_bSpeedhack)
+		if (!G::CanPrimaryAttack && !G::Reloading && !F::Ticks.IsTimingUnsure())
 			return false;
 	}
 
@@ -299,9 +309,6 @@ bool CAimbotGlobal::ShouldHoldAttack(CTFWeaponBase* pWeapon)
 // will not predict for projectile weapons
 bool CAimbotGlobal::ValidBomb(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CBaseEntity* pBomb)
 {
-	if (G::PrimaryWeaponType == EWeaponType::PROJECTILE)
-		return false;
-
 	Vec3 vOrigin = pBomb->m_vecOrigin();
 
 	CBaseEntity* pEntity;
@@ -313,13 +320,13 @@ bool CAimbotGlobal::ValidBomb(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CBaseEn
 			|| !FriendlyFire() && pEntity->m_iTeamNum() == pLocal->m_iTeamNum())
 			continue;
 
-		Vec3 vPos; reinterpret_cast<CCollisionProperty*>(pEntity->GetCollideable())->CalcNearestPoint(vOrigin, &vPos);
+		Vec3 vPos; pEntity->m_Collision()->CalcNearestPoint(vOrigin, &vPos);
 		if (vOrigin.DistTo(vPos) > 300.f)
 			continue;
 
 		if (pEntity->IsPlayer() || pEntity->IsBuilding() || pEntity->IsNPC())
 		{
-			if (ShouldIgnore(pEntity->As<CTFPlayer>(), pLocal, pWeapon))
+			if (ShouldIgnore(pEntity, pLocal, pWeapon))
 				continue;
 
 			if (!SDK::VisPosCollideable(pBomb, pEntity, vOrigin, pEntity->IsPlayer() ? pEntity->m_vecOrigin() + pEntity->As<CTFPlayer>()->GetViewOffset() : pEntity->GetCenter(), MASK_SHOT))

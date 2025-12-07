@@ -76,9 +76,10 @@ void CVisuals::ProjectileTrace(CTFPlayer* pPlayer, CTFWeaponBase* pWeapon, const
 	filter.pSkip = pPlayer;
 	int nMask = MASK_SOLID;
 	F::ProjSim.SetupTrace(filter, nMask, pWeapon, 0, bQuick);
-
 	Vec3* pNormal = nullptr;
-	for (int n = 1; n <= TIME_TO_TICKS(tProjInfo.m_flLifetime); n++)
+
+	int iTicks = TIME_TO_TICKS(std::min(tProjInfo.m_flLifetime, 10.f));
+	for (int n = 1; n <= iTicks; n++)
 	{
 		Vec3 Old = F::ProjSim.GetOrigin();
 		F::ProjSim.RunTick(tProjInfo);
@@ -218,7 +219,7 @@ void CVisuals::SplashRadius(CTFPlayer* pLocal)
 	if (!Vars::Visuals::Simulation::SplashRadius.Value)
 		return;
 
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::WORLD_PROJECTILES))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::WorldProjectile))
 	{
 		bool bShouldDraw = false;
 		CTFPlayer* pOwner = nullptr;
@@ -450,16 +451,16 @@ std::vector<DrawBox_t> CVisuals::GetHitboxes(matrix3x4* aBones, CBaseAnimating* 
 
 	if (vHitboxes.empty())
 	{
-		for (int i = 0; i < pSet->numhitboxes; i++)
-			vHitboxes.push_back(i);
+		for (int nHitbox = 0; nHitbox < pSet->numhitboxes; nHitbox++)
+			vHitboxes.push_back(nHitbox);
 	}
 
-	for (int i : vHitboxes)
+	for (int nHitbox : vHitboxes)
 	{
-		auto pBox = pSet->pHitbox(i);
+		auto pBox = pSet->pHitbox(nHitbox);
 		if (!pBox) continue;
 
-		bool bTargeted = i == iTarget;
+		bool bTargeted = nHitbox == iTarget;
 		Vec3 vAngle; Math::MatrixAngles(aBones[pBox->bone], vAngle);
 		Vec3 vOrigin; Math::GetMatrixOrigin(aBones[pBox->bone], vOrigin);
 		Vec3 vMins = pBox->bbmin * pEntity->m_flModelScale();
@@ -477,8 +478,11 @@ std::vector<DrawBox_t> CVisuals::GetHitboxes(matrix3x4* aBones, CBaseAnimating* 
 
 		if (Vars::Debug::Info.Value)
 		{
-			float flBoneScale = std::max(Vars::Aimbot::Hitscan::BoneSizeMinimumScale.Value, Vars::Aimbot::Hitscan::PointScale.Value / 100.f);
+			float flBoneScale = Vars::Aimbot::Hitscan::BoneSizeMinimumScale.Value;
 			float flBoneSubtract = Vars::Aimbot::Hitscan::BoneSizeSubtract.Value;
+
+			if (F::AimbotGlobal.ShouldMultipoint(pEntity, nHitbox, Vars::Aimbot::Hitscan::MultipointHitboxes.Value))
+				flBoneScale = std::max(flBoneScale, Vars::Aimbot::Hitscan::MultipointScale.Value / 100.f);
 
 			Vec3 vCheckMins = (pBox->bbmin + flBoneSubtract / pEntity->m_flModelScale()) * flBoneScale * pEntity->m_flModelScale();
 			Vec3 vCheckMaxs = (pBox->bbmax - flBoneSubtract / pEntity->m_flModelScale()) * flBoneScale * pEntity->m_flModelScale();
@@ -569,7 +573,7 @@ void CVisuals::DrawHitboxes(int iStore)
 		s_vHitboxes.clear();
 
 		bool bLocalhost = SDK::IsLoopback();
-		for (auto& pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ALL))
+		for (auto& pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 		{
 			auto pPlayer = pEntity->As<CTFPlayer>();
 			if (pPlayer->entindex() == I::EngineClient->GetLocalPlayer() && !I::Input->CAM_IsThirdPerson() || !pPlayer->IsAlive())
@@ -648,7 +652,7 @@ MAKE_HOOK(NDebugOverlay_BoxAngles, S::NDebugOverlay_BoxAngles(), void,
 
 void CVisuals::FOV(CTFPlayer* pLocal, CViewSetup* pView)
 {
-	static auto fov_desired = U::ConVars.FindVar("fov_desired");
+	static auto fov_desired = H::ConVars.FindVar("fov_desired");
 	bool bZoomed = pLocal->InCond(TF_COND_ZOOMED);
 
 	float flRegularFOV = fov_desired->GetFloat();
@@ -694,7 +698,7 @@ void CVisuals::ThirdPerson(CTFPlayer* pLocal, CViewSetup* pView)
 		I::Input->CAM_ToFirstPerson();
 	pLocal->ThirdPersonSwitch();
 
-	static auto cam_ideallag = U::ConVars.FindVar("cam_ideallag");
+	static auto cam_ideallag = H::ConVars.FindVar("cam_ideallag");
 	cam_ideallag->SetValue(0.f);
 
 	if (I::Input->CAM_IsThirdPerson())
@@ -819,14 +823,14 @@ void CVisuals::Store(CTFPlayer* pLocal)
 		return;
 
 	std::unordered_map<IClientEntity*, Vec3> mDots = {};
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::MISC_DOTS))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::SniperDots))
 	{
 		if (auto pOwner = pEntity->m_hOwnerEntity().Get())
 			mDots[pOwner] = pEntity->m_vecOrigin();
 	}
 
 	Group_t* pGroup = nullptr;
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ALL))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 	{
 		auto pPlayer = pEntity->As<CTFPlayer>();
 		if (pPlayer == pLocal
@@ -856,8 +860,12 @@ void CVisuals::Store(CTFPlayer* pLocal)
 void CVisuals::OverrideWorldTextures()
 {
 	auto uHash = FNV1A::Hash32(Vars::Visuals::World::WorldTexture.Value.c_str());
-	if (uHash == FNV1A::Hash32Const("Default"))
+	switch (uHash)
+	{
+	case FNV1A::Hash32Const("Default"):
+	case FNV1A::Hash32Const("Flat"):
 		return;
+	}
 
 	KeyValues* kv = new KeyValues("LightmappedGeneric");
 	if (!kv)
@@ -877,7 +885,7 @@ void CVisuals::OverrideWorldTextures()
 	case FNV1A::Hash32Const("White"):
 		kv->SetString("$basetexture", "patterns/combat/white");
 		break;
-	case FNV1A::Hash32Const("Flat"):
+	case FNV1A::Hash32Const("Gray"):
 		kv->SetString("$basetexture", "vgui/white_additive");
 		kv->SetString("$color2", "[0.12 0.12 0.15]");
 		break;
@@ -888,22 +896,15 @@ void CVisuals::OverrideWorldTextures()
 	for (auto h = I::MaterialSystem->FirstMaterial(); h != I::MaterialSystem->InvalidMaterial(); h = I::MaterialSystem->NextMaterial(h))
 	{
 		auto pMaterial = I::MaterialSystem->GetMaterial(h);
-		if (!pMaterial || pMaterial->IsErrorMaterial() || !pMaterial->IsPrecached() || pMaterial->IsTranslucent() || pMaterial->IsSpriteCard())
+		if (!pMaterial || pMaterial->IsErrorMaterial() || !pMaterial->IsPrecached() || pMaterial->IsTranslucent() || pMaterial->IsAlphaTested() || pMaterial->IsSpriteCard())
 			continue;
 
-		std::string_view sGroup = pMaterial->GetTextureGroupName();
 		std::string_view sName = pMaterial->GetName();
-
-		if (!sGroup._Starts_with("World")
-			|| sName.find("water") != std::string_view::npos || sName.find("glass") != std::string_view::npos
-			|| sName.find("door") != std::string_view::npos || sName.find("tools") != std::string_view::npos
-			|| sName.find("player") != std::string_view::npos || sName.find("chicken") != std::string_view::npos
-			|| sName.find("wall28") != std::string_view::npos || sName.find("wall26") != std::string_view::npos
-			|| sName.find("decal") != std::string_view::npos || sName.find("overlay") != std::string_view::npos
-			|| sName.find("hay") != std::string_view::npos)
-		{
+		std::string_view sGroup = pMaterial->GetTextureGroupName();
+		if (!sGroup.starts_with(TEXTURE_GROUP_WORLD)
+			|| sName.find("sky") != std::string_view::npos
+			|| sName.find("water") != std::string_view::npos)
 			continue;
-		}
 
 		pMaterial->SetShaderAndParams(kv);
 	}
@@ -917,9 +918,20 @@ static inline void ApplyModulation(Color_t tColor, bool bSky = false)
 		if (!pMaterial || pMaterial->IsErrorMaterial() || !pMaterial->IsPrecached())
 			continue;
 
-		auto sGroup = std::string_view(pMaterial->GetTextureGroupName());
-		if (!bSky ? !sGroup._Starts_with("World") : !sGroup._Starts_with("SkyBox"))
-			continue;
+		std::string_view sName = pMaterial->GetName();
+		std::string_view sGroup = pMaterial->GetTextureGroupName();
+		if (!bSky)
+		{
+			if (!sGroup.starts_with(TEXTURE_GROUP_WORLD)
+				|| sName.find("sky") != std::string_view::npos)
+				continue;
+		}
+		else
+		{
+			if (!sGroup.starts_with(TEXTURE_GROUP_SKYBOX)
+				&& sName.find("sky") == std::string_view::npos)
+				continue;
+		}
 
 		pMaterial->ColorModulate(tColor.r / 255.f, tColor.g / 255.f, tColor.b / 255.f);
 	}
@@ -1005,7 +1017,7 @@ void CVisuals::CreateMove(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 		iOldMedigunCharge = iNewMedigunCharge;
 	}
 
-	static auto r_aspectratio = U::ConVars.FindVar("r_aspectratio");
+	static auto r_aspectratio = H::ConVars.FindVar("r_aspectratio");
 	static float flStaticRatio = 0.f;
 	float flOldRatio = flStaticRatio;
 	float flNewRatio = flStaticRatio = Vars::Visuals::UI::AspectRatio.Value;

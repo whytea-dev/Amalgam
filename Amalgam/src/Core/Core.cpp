@@ -2,10 +2,10 @@
 
 #include "../SDK/SDK.h"
 #include "../BytePatches/BytePatches.h"
-#include "../Features/Visuals/Materials/Materials.h"
 #include "../Features/Configs/Configs.h"
-#include "../Features/Commands/Commands.h"
 #include "../Features/ImGui/Menu/Menu.h"
+#include "../Features/EnginePrediction/EnginePrediction.h"
+#include "../Features/Visuals/Materials/Materials.h"
 #include "../Features/Visuals/Visuals.h"
 #include "../SDK/Events/Events.h"
 #include <Psapi.h>
@@ -28,14 +28,18 @@ static inline std::string GetProcessName(DWORD dwProcessID)
 
 static inline bool CheckDXLevel()
 {
-	auto mat_dxlevel = U::ConVars.FindVar("mat_dxlevel");
+	auto mat_dxlevel = H::ConVars.FindVar("mat_dxlevel");
 	if (mat_dxlevel->GetInt() < 90)
 	{
-		//const char* sMessage = "You are running with graphics options that Amalgam does not support. -dxlevel must be at least 90.";
-		const char* sMessage = "You are running with graphics options that Amalgam does not support. It is recommended for -dxlevel to be at least 90.";
+		/*
+		const char* sMessage = "You are running with graphics options that Amalgam does not support. -dxlevel must be at least 90.";
 		U::Core.AppendFailText(sMessage);
 		SDK::Output("Amalgam", sMessage, { 175, 150, 255 }, OUTPUT_CONSOLE | OUTPUT_DEBUG | OUTPUT_TOAST | OUTPUT_MENU);
-		//return false;
+		return false;
+		*/
+
+		const char* sMessage = "You are running with graphics options that Amalgam does not support. It is recommended for -dxlevel to be at least 90.";
+		SDK::Output("Amalgam", sMessage, { 175, 150, 255 }, OUTPUT_CONSOLE | OUTPUT_DEBUG | OUTPUT_TOAST | OUTPUT_MENU);
 	}
 
 	return true;
@@ -43,20 +47,28 @@ static inline bool CheckDXLevel()
 
 void CCore::AppendFailText(const char* sMessage)
 {
+	if (m_ssFailStream.str().empty())
+	{
+		m_ssFailStream << "Built @ " __DATE__ ", " __TIME__ ", " __CONFIGURATION__ "\n";
+		m_ssFailStream << std::format("Time @ {}, {}\n", SDK::GetDate(), SDK::GetTime());
+		m_ssFailStream << "\n";
+	}
+
 	m_ssFailStream << std::format("{}\n", sMessage);
 	OutputDebugStringA(std::format("{}\n", sMessage).c_str());
 }
 
 void CCore::LogFailText()
 {
-	m_ssFailStream << "\nBuilt @ " __DATE__ ", " __TIME__ ", " __CONFIGURATION__ "\n";
-	m_ssFailStream << "Ctrl + C to copy. \n";
 	try
 	{
 		std::ofstream file;
 		file.open(F::Configs.m_sConfigPath + "fail_log.txt", std::ios_base::app);
 		file << m_ssFailStream.str() + "\n\n\n";
 		file.close();
+
+		m_ssFailStream << "\n";
+		m_ssFailStream << "Ctrl + C to copy. \n";
 		m_ssFailStream << "Logged to Amalgam\\fail_log.txt. ";
 	}
 	catch (...) {}
@@ -73,12 +85,18 @@ void CCore::Load()
 	}
 
 	float flTime = 0.f;
-	while (!U::Memory.FindSignature("client.dll", "48 8B 0D ? ? ? ? 48 8B 10 48 8B 19 48 8B C8 FF 92") || !SDK::GetTeamFortressWindow())
+	while (true)
 	{
+		auto uSignature = U::Memory.FindSignature("client.dll", "48 8B 0D ? ? ? ? 48 8B 10 48 8B 19 48 8B C8 FF 92");
+		auto uDereference = uSignature ? *reinterpret_cast<uintptr_t*>(U::Memory.RelToAbs(uSignature)) : 0;
+		auto hWindow = SDK::GetTeamFortressWindow();
+		if (uDereference && hWindow)
+			break;
+
 		Sleep(500), flTime += 0.5f;
 		if (m_bUnload = m_bFailed = flTime >= 60.f)
 		{
-			AppendFailText("Failed to load");
+			AppendFailText(std::format("Failed to load in time:\n  {:#x} ({:#x})\n  {:#x}", uDereference, uSignature, uintptr_t(hWindow)).c_str());
 			return;
 		}
 		if (m_bUnload = m_bFailed = U::KeyHandler.Down(VK_F11, true))
@@ -94,7 +112,7 @@ void CCore::Load()
 	if (m_bUnload = m_bFailed2 = !U::Hooks.Initialize() || !U::BytePatches.Initialize() || !H::Events.Initialize())
 		return;
 	F::Materials.LoadMaterials();
-	U::ConVars.Initialize();
+	H::ConVars.Unlock();
 
 	F::Configs.LoadConfig(F::Configs.m_sCurrentConfig, false);
 
@@ -137,11 +155,12 @@ void CCore::Unload()
 			pLocal->ThirdPersonSwitch();
 		}
 	}
-	U::ConVars.FindVar("cl_wpn_sway_interp")->SetValue(0.f);
-	U::ConVars.FindVar("cl_wpn_sway_scale")->SetValue(0.f);
+	H::ConVars.FindVar("cl_wpn_sway_interp")->SetValue(0.f);
+	H::ConVars.FindVar("cl_wpn_sway_scale")->SetValue(0.f);
 
 	Sleep(250);
-	U::ConVars.Unload();
+	F::EnginePrediction.Unload();
+	H::ConVars.Restore();
 	F::Materials.UnloadMaterials();
 
 	if (m_bFailed2)

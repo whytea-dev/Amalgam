@@ -68,6 +68,11 @@ public:
 		return x != v.x || y != v.y;
 	}
 
+	explicit operator bool() const
+	{
+		return x || y;
+	}
+
 	inline Vec2& operator+=(const Vec2& v)
 	{
 		x += v.x; y += v.y; return *this;
@@ -270,10 +275,10 @@ public:
 		return x * v.x + y * v.y;
 	}
 
-	inline bool IsZero(void) const
+	inline bool IsZero(float flEpsilon = 0.001f) const
 	{
-		return fabsf(x) < 0.001f &&
-			   fabsf(y) < 0.001f;
+		return fabsf(x) < flEpsilon &&
+			   fabsf(y) < flEpsilon;
 	}
 };
 using Vector2D = Vec2;
@@ -337,6 +342,11 @@ public:
 	inline bool operator!=(const Vec3& v) const
 	{
 		return x != v.x || y != v.y || z != v.z;
+	}
+
+	explicit operator bool() const
+	{
+		return x || y || z;
 	}
 
 	inline Vec3& operator+=(const Vec3& v)
@@ -612,11 +622,11 @@ public:
 		return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
 	}
 
-	inline bool IsZero(void) const
+	inline bool IsZero(float flEpsilon = 0.001f) const
 	{
-		return fabsf(x) < 0.001f &&
-			   fabsf(y) < 0.001f &&
-			   fabsf(z) < 0.001f;
+		return fabsf(x) < flEpsilon &&
+			   fabsf(y) < flEpsilon &&
+			   fabsf(z) < flEpsilon;
 	}
 
 	inline Vec3 ToAngle() const noexcept
@@ -940,14 +950,29 @@ struct Color_t
 		}
 	}
 
+	inline Color_t Blend(Color_t to) const
+	{
+		return Lerp(to, to.a / 255.f);
+	}
+
 	inline Color_t Alpha(byte to) const
 	{
 		return { r, g, b, to };
 	}
 
-	inline int Brightness() const
+	inline float Brightness(float flRed = 0.299f, float flGreen = 0.587f, float flBlue = 0.114f) const
 	{
-		return r + g + b;
+		return r * flRed + g * flGreen + b * flBlue;
+	}
+
+	inline bool IsColorBright(float flValue = 175, float flRed = 0.299f, float flGreen = 0.587f, float flBlue = 0.114f) const
+	{
+		return Brightness(flRed, flGreen, flBlue) > flValue;
+	}
+
+	inline bool IsColorDark(float flValue = 80, float flRed = 0.299f, float flGreen = 0.587f, float flBlue = 0.114f)const
+	{
+		return Brightness(flRed, flGreen, flBlue) < flValue;
 	}
 };
 

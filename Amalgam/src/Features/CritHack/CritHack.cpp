@@ -14,7 +14,7 @@
 #define SEED_ATTEMPTS 4096
 #define BUCKET_ATTEMPTS 1000
 
-#define SERVER_CRIT_DATA
+//#define SERVER_CRIT_DATA
 
 int CCritHack::GetCritCommand(CTFWeaponBase* pWeapon, int iCommandNumber, bool bCrit, bool bSafe)
 {
@@ -106,7 +106,7 @@ void CCritHack::UpdateWeaponInfo(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 	if (pWeapon == pOldWeapon && flBucket == flLastBucket && iCritChecks == iLastCritChecks && iCritSeedRequests == iLastCritSeedRequests)
 		return;
 
-	static auto tf_weapon_criticals_bucket_cap = U::ConVars.FindVar("tf_weapon_criticals_bucket_cap");
+	static auto tf_weapon_criticals_bucket_cap = H::ConVars.FindVar("tf_weapon_criticals_bucket_cap");
 	const float flBucketCap = tf_weapon_criticals_bucket_cap->GetFloat();
 	bool bRapidFire = pWeapon->IsRapidFire();
 	float flFireRate = pWeapon->GetFireRate();
@@ -299,7 +299,15 @@ void CCritHack::Reset()
 int CCritHack::GetCritRequest(CUserCmd* pCmd, CTFWeaponBase* pWeapon)
 {
 	bool bCanCrit = m_iAvailableCrits > 0 && !m_bCritBanned;
-	bool bPressed = Vars::CritHack::ForceCrits.Value || Vars::CritHack::AlwaysMeleeCrit.Value && m_bMelee && (Vars::Aimbot::General::AutoShoot.Value ? pCmd->buttons & IN_ATTACK && !(G::OriginalCmd.buttons & IN_ATTACK) : Vars::Aimbot::General::AimType.Value);
+	bool bPressed = Vars::CritHack::ForceCrits.Value;
+	if (Vars::CritHack::AlwaysMeleeCrit.Value && m_bMelee
+		&& (Vars::Aimbot::General::AutoShoot.Value ? pCmd->buttons & IN_ATTACK && !(G::OriginalCmd.buttons & IN_ATTACK) : Vars::Aimbot::General::AimType.Value)
+		&& G::AimTarget.m_iEntIndex)
+	{
+		auto pEntity = I::ClientEntityList->GetClientEntity(G::AimTarget.m_iEntIndex)->As<CBaseEntity>();
+		if (pEntity && pEntity->IsPlayer())
+			bPressed = true;
+	}
 	
 	bool bSkip = Vars::CritHack::AvoidRandomCrits.Value;
 	bool bDesync = CommandToSeed(pCmd->command_number) == pWeapon->m_iCurrentSeed();
@@ -425,7 +433,10 @@ void CCritHack::Event(IGameEvent* pEvent, uint32_t uHash, CTFPlayer* pLocal)
 			auto pVictim = I::ClientEntityList->GetClientEntity(iVictim)->As<CTFPlayer>();
 
 			if (!iHealth)
-				iDamage = std::min(iDamage, tHistory.m_iNewHealth);
+			{
+				iDamage = std::clamp(iDamage, 0, tHistory.m_iNewHealth);
+				tHistory.m_iSpawnCounter = -1;
+			}
 			else if (pVictim && (pVictim->m_bFeignDeathReady() || pVictim->InCond(TF_COND_FEIGN_DEATH))) // damage number is spoofed upon sending, correct it
 			{
 				int iOldHealth = (tHistory.m_mHistory.contains(iHealth) ? tHistory.m_mHistory[iHealth].m_iOldHealth : tHistory.m_iNewHealth) % 32768;
@@ -459,6 +470,10 @@ void CCritHack::Event(IGameEvent* pEvent, uint32_t uHash, CTFPlayer* pLocal)
 					return;
 				}
 			}
+
+			const int iInsanePlayerDamage = pGameRules->m_bPlayingMannVsMachine() ? 5000 : 1500;
+			if (iDamage > iInsanePlayerDamage)
+				return;
 		}
 
 		//m_flLastDamageTime = I::GlobalVars->curtime;
@@ -498,24 +513,34 @@ void CCritHack::Event(IGameEvent* pEvent, uint32_t uHash, CTFPlayer* pLocal)
 
 void CCritHack::Store()
 {
-	for (auto& pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ALL))
+	for (int n = 1; n <= I::EngineClient->GetMaxClients(); n++)
 	{
-		auto pPlayer = pEntity->As<CTFPlayer>();
-		if (pPlayer->IsAlive() && !pPlayer->IsAGhost())
-			StoreHealthHistory(pPlayer->entindex(), pPlayer->m_iHealth());
+		auto pPlayer = I::ClientEntityList->GetClientEntity(n)->As<CTFPlayer>();
+		if (pPlayer && pPlayer->IsAlive() && !pPlayer->IsAGhost())
+			StoreHealthHistory(n, pPlayer->m_iHealth(), pPlayer);
 	}
 }
 
-void CCritHack::StoreHealthHistory(int iIndex, int iHealth, bool bDamage)
+void CCritHack::StoreHealthHistory(int iIndex, int iHealth, CTFPlayer* pPlayer)
 {
 	bool bContains = m_mHealthHistory.contains(iIndex);
 	auto& tHistory = m_mHealthHistory[iIndex];
+
+	if (bContains && pPlayer)
+	{	// deal with instant respawn damage desync better
+		if (pPlayer->IsDormant())
+			tHistory.m_iSpawnCounter = -1;
+		else if (tHistory.m_iSpawnCounter == -1)
+			tHistory.m_iSpawnCounter = pPlayer->m_iSpawnCounter();
+		else if (tHistory.m_iSpawnCounter != pPlayer->m_iSpawnCounter())
+			return; // wait for event
+	}
 
 	if (!bContains)
 		tHistory = { iHealth, iHealth };
 	else if (iHealth != tHistory.m_iNewHealth)
 	{
-		tHistory.m_iOldHealth = std::max(bDamage && tHistory.m_mHistory.contains(iHealth % 32768) ? tHistory.m_mHistory[iHealth % 32768].m_iOldHealth : tHistory.m_iNewHealth, iHealth);
+		tHistory.m_iOldHealth = std::max(tHistory.m_iNewHealth, iHealth);
 		tHistory.m_iNewHealth = iHealth;
 	}
 
@@ -536,11 +561,11 @@ void CCritHack::StoreHealthHistory(int iIndex, int iHealth, bool bDamage)
 MAKE_SIGNATURE(CTFGameStats_FindPlayerStats, "server.dll", "4C 8B C1 48 85 D2 75", 0x0);
 MAKE_SIGNATURE(UTIL_PlayerByIndex, "server.dll", "48 83 EC ? 8B D1 85 C9 7E ? 48 8B 05", 0x0);
 
-static void* pCTFGameStats = nullptr;
+static void* s_pCTFGameStats = nullptr;
 MAKE_HOOK(CTFGameStats_FindPlayerStats, S::CTFGameStats_FindPlayerStats(), void*,
 	void* rcx, CBasePlayer* pPlayer)
 {
-	pCTFGameStats = rcx;
+	s_pCTFGameStats = rcx;
 	return CALL_ORIGINAL(rcx, pPlayer);
 }
 #endif
@@ -651,22 +676,22 @@ void CCritHack::Draw(CTFPlayer* pLocal)
 #ifdef SERVER_CRIT_DATA
 		H::Draw.StringOutlined(fFont, x, y += nTall, Vars::Menu::Theme::Active.Value, Vars::Menu::Theme::Background.Value, align, std::format("AllDamage: {} ({})", m_iRangedDamage + m_iMeleeDamage, m_iMeleeDamage).c_str());
 
-		if (pCTFGameStats)
+		if (s_pCTFGameStats)
 		{
 			if (auto pPlayer2 = S::UTIL_PlayerByIndex.Call<void*>(I::EngineClient->GetLocalPlayer()))
 			{
-				if (auto pPlayerStats = S::CTFGameStats_FindPlayerStats.Call<PlayerStats_t*>(pCTFGameStats, pPlayer2))
+				if (auto pPlayerStats = S::CTFGameStats_FindPlayerStats.Call<PlayerStats_t*>(s_pCTFGameStats, pPlayer2))
 				{
-					int iRangedDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE_RANGED] /*= m_iRangedDamage*/;
-					int iCritDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE_RANGED_CRIT_RANDOM] /*= m_iCritDamage = 0*/;
-					int iDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE] /*= m_iRangedDamage + m_iMeleeDamage*/;
+					int& iRangedDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE_RANGED];
+					int& iCritDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE_RANGED_CRIT_RANDOM];
+					int& iDamage = pPlayerStats->statsCurrentRound.m_iStat[TFSTAT_DAMAGE];
 
-					H::Draw.StringOutlined(fFont, x, y += nTall, Vars::Menu::Theme::Active.Value, Vars::Menu::Theme::Background.Value, align, std::format(
-						"RangedDamage: {}, CritDamage: {}", iRangedDamage, iCritDamage
-					).c_str());
-					H::Draw.StringOutlined(fFont, x, y += nTall, Vars::Menu::Theme::Active.Value, Vars::Menu::Theme::Background.Value, align, std::format(
-						"AllDamage: {} ({})", iDamage, iDamage - iRangedDamage
-					).c_str());
+					//iRangedDamage = m_iRangedDamage;
+					//iCritDamage = m_iCritDamage = 0;
+					//iDamage = m_iRangedDamage + m_iMeleeDamage;
+
+					H::Draw.StringOutlined(fFont, x, y += nTall, Vars::Menu::Theme::Active.Value, Vars::Menu::Theme::Background.Value, align, std::format("RangedDamage: {}, CritDamage: {}", iRangedDamage, iCritDamage).c_str());
+					H::Draw.StringOutlined(fFont, x, y += nTall, Vars::Menu::Theme::Active.Value, Vars::Menu::Theme::Background.Value, align, std::format("AllDamage: {} ({})", iDamage, iDamage - iRangedDamage).c_str());
 				}
 			}
 		}

@@ -111,7 +111,7 @@ void CMisc::AutoStrafe(CTFPlayer* pLocal, CUserCmd* pCmd)
 	{
 	case Vars::Misc::Movement::AutoStrafeEnum::Legit:
 	{
-		static auto cl_sidespeed = U::ConVars.FindVar("cl_sidespeed");
+		static auto cl_sidespeed = H::ConVars.FindVar("cl_sidespeed");
 		const float flSideSpeed = cl_sidespeed->GetFloat();
 
 		if (pCmd->mousedx)
@@ -215,7 +215,7 @@ void CMisc::InstantRespawnMVM(CTFPlayer* pLocal)
 		return;
 
 	KeyValues* kv = new KeyValues("MVM_Revive_Response");
-	kv->SetInt("accepted", 1);
+	kv->SetBool("accepted", true);
 	I::EngineClient->ServerCmdKeyValues(kv);
 }
 
@@ -232,7 +232,7 @@ void CMisc::NoisemakerSpam(CTFPlayer* pLocal)
 void CMisc::CheatsBypass()
 {
 	static bool bCheatSet = false;
-	static auto sv_cheats = U::ConVars.FindVar("sv_cheats");
+	static auto sv_cheats = H::ConVars.FindVar("sv_cheats");
 	if (Vars::Misc::Exploits::CheatsBypass.Value)
 	{
 		sv_cheats->m_nValue = 1;
@@ -247,8 +247,8 @@ void CMisc::CheatsBypass()
 
 void CMisc::WeaponSway()
 {
-	static auto cl_wpn_sway_interp = U::ConVars.FindVar("cl_wpn_sway_interp");
-	static auto cl_wpn_sway_scale = U::ConVars.FindVar("cl_wpn_sway_scale");
+	static auto cl_wpn_sway_interp = H::ConVars.FindVar("cl_wpn_sway_interp");
+	static auto cl_wpn_sway_scale = H::ConVars.FindVar("cl_wpn_sway_scale");
 
 	bool bSway = Vars::Visuals::Viewmodel::SwayInterp.Value || Vars::Visuals::Viewmodel::SwayScale.Value;
 	cl_wpn_sway_interp->SetValue(bSway ? Vars::Visuals::Viewmodel::SwayInterp.Value : 0.f);
@@ -430,7 +430,7 @@ int CMisc::AntiBackstab(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 		return 0;
 
 	std::vector<std::pair<Vec3, CBaseEntity*>> vTargets = {};
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerEnemy))
 	{
 		auto pPlayer = pEntity->As<CTFPlayer>();
 		if (!pPlayer->IsAlive() || pPlayer->IsAGhost() || pPlayer->InCond(TF_COND_STEALTHED))
@@ -483,19 +483,23 @@ int CMisc::AntiBackstab(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 		{
 			auto TargetIsBehind = [&]()
 				{
+					const float flCompDist = 0.0625f;
+					const float flSqCompDist = 0.0884f;
+
 					Vec3 vToTarget = (pLocal->m_vecOrigin() - pTargetPos.first).To2D();
 					const float flDist = vToTarget.Normalize();
-					if (!flDist)
+					if (flDist < flSqCompDist)
 						return true;
 
-					float flTolerance = 0.0625f;
-					float flExtra = 2.f * flTolerance / flDist; // account for origin compression
+					const float flExtra = 2.f * flCompDist / flDist; // account for origin compression
 					float flPosVsTargetViewMinDot = 0.f - 0.0031f - flExtra;
 
 					Vec3 vTargetForward; Math::AngleVectors(pCmd->viewangles, &vTargetForward);
 					vTargetForward.Normalize2D();
 
-					return vToTarget.Dot(vTargetForward) > flPosVsTargetViewMinDot;
+					const float flPosVsTargetViewDot = vToTarget.Dot(vTargetForward); // Behind?
+
+					return flPosVsTargetViewDot > flPosVsTargetViewMinDot;
 				};
 
 			if (!TargetIsBehind())
@@ -526,7 +530,7 @@ void CMisc::PingReducer()
 	if (!tTimer.Run(0.1f))
 		return;
 
-	static auto cl_cmdrate = U::ConVars.FindVar("cl_cmdrate");
+	static auto cl_cmdrate = H::ConVars.FindVar("cl_cmdrate");
 	int iTarget = Vars::Misc::Exploits::PingReducer.Value ? Vars::Misc::Exploits::PingTarget.Value : cl_cmdrate->GetInt();
 	if (m_iWishCmdrate != iTarget)
 	{
@@ -540,7 +544,7 @@ void CMisc::PingReducer()
 		}
 	}
 
-	static auto sv_maxupdaterate = U::ConVars.FindVar("sv_maxupdaterate"); // force highest cl_updaterate command possible
+	static auto sv_maxupdaterate = H::ConVars.FindVar("sv_maxupdaterate"); // force highest cl_updaterate command possible
 	iTarget = sv_maxupdaterate->GetInt();
 	if (m_iWishUpdaterate != iTarget)
 	{

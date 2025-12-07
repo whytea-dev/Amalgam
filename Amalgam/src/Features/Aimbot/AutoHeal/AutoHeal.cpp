@@ -6,6 +6,34 @@
 #include "../../Simulation/ProjectileSimulation/ProjectileSimulation.h"
 #include "../AimbotProjectile/AimbotProjectile.h"
 
+void CAutoHeal::AutoHeal(CTFPlayer* pLocal, CWeaponMedigun* pWeapon, CUserCmd* pCmd)
+{	// manage lagcomp
+	if (!Vars::Aimbot::Healing::AutoHeal.Value)
+		return;
+
+	auto pTarget = pWeapon->m_hHealingTarget().Get()->As<CTFPlayer>();
+	if (!pTarget || pCmd->buttons & IN_ATTACK && !(G::LastUserCmd->buttons & IN_ATTACK))
+		return;
+
+	std::vector<TickRecord*> vRecords = {};
+	if (!F::Backtrack.GetRecords(pTarget, vRecords))
+		return;
+	vRecords = F::Backtrack.GetValidRecords(vRecords, pLocal, true);
+	if (!vRecords.size())
+		return;
+
+	Vec3 vEyePos = pLocal->GetShootPos();
+	for (auto pRecord : vRecords)
+	{
+		Vec3 vCenter = pRecord->m_vOrigin + (pRecord->m_vMins + pRecord->m_vMaxs) / 2;
+		if (SDK::VisPosWorld(pLocal, pTarget, vEyePos, vCenter))
+		{
+			pCmd->tick_count = TIME_TO_TICKS(pRecord->m_flSimTime) + TIME_TO_TICKS(F::Backtrack.GetFakeInterp());
+			break;
+		}
+	}
+}
+
 void CAutoHeal::ActivateOnVoice(CTFPlayer* pLocal, CWeaponMedigun* pWeapon, CUserCmd* pCmd)
 {
 	if (!Vars::Aimbot::Healing::ActivateOnVoice.Value)
@@ -226,7 +254,7 @@ void CAutoHeal::GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBullet
 	Vec3 vTargetCenter = vTargetOrigin + pTarget->GetOffset() / 2;
 	Vec3 vTargetEye = vTargetOrigin + pTarget->GetViewOffset();
 
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerEnemy))
 	{
 		auto pPlayer = pEntity->As<CTFPlayer>();
 		int iIndex = pPlayer->entindex();
@@ -246,7 +274,7 @@ void CAutoHeal::GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBullet
 
 		bool bCheater = F::PlayerUtils.HasTag(iIndex, F::PlayerUtils.TagToIndex(CHEATER_TAG));
 		bool bZoom = pPlayer->InCond(TF_COND_ZOOMED);
-		float flFOV = Math::CalcFov(H::Entities.GetEyeAngles(iIndex) + H::Entities.GetPingAngles(iIndex), Math::CalcAngle(vPlayerEye, bZoom ? vTargetEye : vTargetCenter));
+		float flFOV = Math::CalcFov(H::Entities.GetEyeAngles(iIndex) + H::Entities.GetDeltaAngles(iIndex), Math::CalcAngle(vPlayerEye, bZoom ? vTargetEye : vTargetCenter));
 		bool bFOV = bCheater || flFOV < (bZoom ? 10 : eWeaponType == EWeaponType::HITSCAN ? 30 : 90);
 		if (!bFOV || !TraceToEntity(pTarget, pPlayer, vTargetCenter, vPlayerEye))
 			continue;
@@ -269,7 +297,7 @@ void CAutoHeal::GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBullet
 			bool bPiss = SDK::AttribHookValue(0, "jarate_duration", pWeapon) > 0;
 			auto GetSniperDot = [](CBaseEntity* pEntity) -> CSniperDot*
 				{
-					for (auto pDot : H::Entities.GetGroup(EGroupType::MISC_DOTS))
+					for (auto pDot : H::Entities.GetGroup(EntityEnum::SniperDots))
 					{
 						if (pDot->m_hOwnerEntity().Get() == pEntity)
 							return pDot->As<CSniperDot>();
@@ -371,7 +399,7 @@ void CAutoHeal::GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBullet
 		}
 	}
 
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::BUILDINGS_ENEMIES))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::BuildingEnemy))
 	{
 		auto pSentry = pEntity->As<CObjectSentrygun>();
 		if (!pSentry->IsBuilding())
@@ -409,7 +437,7 @@ void CAutoHeal::GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBullet
 		flBulletDanger += flDamageDanger * flDistanceDanger;
 	}
 
-	for (auto pEntity : H::Entities.GetGroup(EGroupType::WORLD_PROJECTILES))
+	for (auto pEntity : H::Entities.GetGroup(EntityEnum::WorldProjectile))
 	{
 		CTFPlayer* pOwner = nullptr;
 		CTFWeaponBase* pWeapon = nullptr;
@@ -602,6 +630,8 @@ void CAutoHeal::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd)
 		m_flDamagedTime = 0.f;
 		return;
 	}
+
+	AutoHeal(pLocal, pWeapon->As<CWeaponMedigun>(), pCmd);
 
 	ActivateOnVoice(pLocal, pWeapon->As<CWeaponMedigun>(), pCmd);
 	m_mMedicCallers.clear();

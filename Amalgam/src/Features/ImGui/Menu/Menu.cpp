@@ -171,15 +171,13 @@ void CMenu::MenuAimbot(int iTab)
 				} EndSection();
 				if (Vars::Debug::Options.Value)
 				{
-					if (Section("##Debug Aimbot"))
+					if (Section("##Debug Aimbot", -8))
 					{
-						FSlider(Vars::Aimbot::General::HitscanPeek);
-						FToggle(Vars::Aimbot::General::PeekDTOnly, FToggleEnum::Left, &Hovered); FTooltip("This should probably stay on if you want to be able to target hitboxes other than the highest priority one", Hovered);
+						FDropdown(Vars::Aimbot::General::AimHoldsFire);
 						FSlider(Vars::Aimbot::General::NoSpreadOffset);
 						FSlider(Vars::Aimbot::General::NoSpreadAverage);
 						FSlider(Vars::Aimbot::General::NoSpreadInterval);
 						FSlider(Vars::Aimbot::General::NoSpreadBackupInterval);
-						FDropdown(Vars::Aimbot::General::AimHoldsFire);
 					} EndSection();
 				}
 				if (Section("Backtrack", 8))
@@ -201,6 +199,8 @@ void CMenu::MenuAimbot(int iTab)
 					FDropdown(Vars::Aimbot::Healing::HealPriority);
 					FToggle(Vars::Aimbot::Healing::AutoHeal, FToggleEnum::Left);
 					FToggle(Vars::Aimbot::Healing::AutoArrow, FToggleEnum::Right);
+					FToggle(Vars::Aimbot::Healing::AutoRepair, FToggleEnum::Left);
+					FToggle(Vars::Aimbot::Healing::AutoSandvich, FToggleEnum::Right);
 					FToggle(Vars::Aimbot::Healing::AutoVaccinator, FToggleEnum::Left);
 					FToggle(Vars::Aimbot::Healing::ActivateOnVoice, FToggleEnum::Right);
 				} EndSection();
@@ -221,8 +221,9 @@ void CMenu::MenuAimbot(int iTab)
 				if (Section("Hitscan"))
 				{
 					FDropdown(Vars::Aimbot::Hitscan::Hitboxes, FDropdownEnum::Left);
-					FDropdown(Vars::Aimbot::Hitscan::Modifiers, FDropdownEnum::Right);
-					FSlider(Vars::Aimbot::Hitscan::PointScale);
+					FDropdown(Vars::Aimbot::Hitscan::MultipointHitboxes, FDropdownEnum::Right);
+					FDropdown(Vars::Aimbot::Hitscan::Modifiers);
+					FSlider(Vars::Aimbot::Hitscan::MultipointScale);
 					PushTransparent(!(Vars::Aimbot::Hitscan::Modifiers.Value & Vars::Aimbot::Hitscan::ModifiersEnum::Tapfire));
 					{
 						FSlider(Vars::Aimbot::Hitscan::TapfireDistance);
@@ -231,8 +232,10 @@ void CMenu::MenuAimbot(int iTab)
 				} EndSection();
 				if (Vars::Debug::Options.Value)
 				{
-					if (Section("##Debug Hitscan"))
+					if (Section("##Debug Hitscan", -8))
 					{
+						FDropdown(Vars::Aimbot::Hitscan::PeekCheck, FDropdownEnum::None, 0, &Hovered); FTooltip("This should stay as doubletap only or off if you want to be able to target hitboxes other than the highest priority one", Hovered);
+						FSlider(Vars::Aimbot::Hitscan::PeekAmount);
 						FSlider(Vars::Aimbot::Hitscan::BoneSizeSubtract);
 						FSlider(Vars::Aimbot::Hitscan::BoneSizeMinimumScale);
 					} EndSection();
@@ -297,17 +300,19 @@ void CMenu::MenuAimbot(int iTab)
 						FToggle(Vars::Aimbot::Projectile::HuntsmanPullPoint, FToggleEnum::Right);
 						SetCursorPosY(GetCursorPosY() + 8);
 
-						FSlider(Vars::Aimbot::Projectile::SplashPoints, FSliderEnum::Left);
-						FToggle(Vars::Aimbot::Projectile::SplashGrates, FToggleEnum::Right);
-						FSlider(Vars::Aimbot::Projectile::SplashRotateX, FSliderEnum::Left, Vars::Aimbot::Projectile::SplashRotateX[DEFAULT_BIND] < 0.f ? "random" : "%g");
-						FSlider(Vars::Aimbot::Projectile::SplashRotateY, FSliderEnum::Right, Vars::Aimbot::Projectile::SplashRotateY[DEFAULT_BIND] < 0.f ? "random" : "%g");
-						FSlider(Vars::Aimbot::Projectile::SplashNthRoot);
+						FSlider(Vars::Aimbot::Projectile::SplashPointsDirect, FSliderEnum::Left);
+						FSlider(Vars::Aimbot::Projectile::SplashPointsArc, FSliderEnum::Right);
 						FSlider(Vars::Aimbot::Projectile::SplashCountDirect, FSliderEnum::Left);
 						FSlider(Vars::Aimbot::Projectile::SplashCountArc, FSliderEnum::Right);
+						FSlider(Vars::Aimbot::Projectile::SplashRotateX, FSliderEnum::Left, Vars::Aimbot::Projectile::SplashRotateX[DEFAULT_BIND] < 0.f ? "random" : "%g");
+						FSlider(Vars::Aimbot::Projectile::SplashRotateY, FSliderEnum::Right, Vars::Aimbot::Projectile::SplashRotateY[DEFAULT_BIND] < 0.f ? "random" : "%g");
 						FSlider(Vars::Aimbot::Projectile::SplashTraceInterval, FSliderEnum::Left);
 						FSlider(Vars::Aimbot::Projectile::SplashNormalSkip, FSliderEnum::Right);
 						FDropdown(Vars::Aimbot::Projectile::SplashMode, FDropdownEnum::Left);
 						FDropdown(Vars::Aimbot::Projectile::RocketSplashMode, FDropdownEnum::Right, 0, &Hovered); FTooltip("Special splash type for rockets, more expensive", Hovered);
+						FToggle(Vars::Aimbot::Projectile::SplashGrates);
+						SetCursorPosY(GetCursorPosY() + 8);
+
 						FSlider(Vars::Aimbot::Projectile::DeltaCount, FSliderEnum::Left);
 						FDropdown(Vars::Aimbot::Projectile::DeltaMode, FDropdownEnum::Right);
 						FDropdown(Vars::Aimbot::Projectile::MovesimFrictionFlags);
@@ -500,7 +505,6 @@ void CMenu::MenuVisuals(int iTab)
 				int iTo = positionToIndex(GetMousePos() - GetDrawPos());
 				if (iDragging != iTo)
 				{
-					SDK::Output("Dragged", std::format("{} -> {}", iDragging, iTo).c_str(), { 0, 255, 255 }, OUTPUT_CONSOLE | OUTPUT_DEBUG);
 					F::Groups.Move(iDragging, iTo);
 					iDragging = iTo;
 				}
@@ -569,6 +573,12 @@ void CMenu::MenuVisuals(int iTab)
 							tGroup.m_sName = sInput;
 					}
 
+					if (FButton("Duplicate"))
+					{
+						auto it2 = F::Groups.m_vGroups.insert(it + 1, tGroup);
+						it2->m_sName += " duplicate";
+					}
+
 					PopStyleVar();
 					EndPopup();
 				}
@@ -604,17 +614,17 @@ void CMenu::MenuVisuals(int iTab)
 					Divider(H::Draw.Scale(), H::Draw.Scale(8), -H::Draw.Scale());
 					PushTransparent(!(tGroup.m_iTargets & TargetsEnum::Players));
 					{
-						FDropdown("Players", &tGroup.m_iPlayers, { "Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy", "##Divider", "Invulnerable", "Crits", "Invisible", "Disguise" }, {}, FDropdownEnum::Multi, 0, "All");
+						FDropdown("Players", &tGroup.m_iPlayers, { "Scout", "Soldier", "Pyro", "Demoman", "Heavy", "Engineer", "Medic", "Sniper", "Spy", "##Divider", "Invulnerable", "Crits", "Invisible", "Disguise", "Hurt" }, {}, FDropdownEnum::Multi, 0, "All");
 					}
 					PopTransparent();
 					PushTransparent(!(tGroup.m_iTargets & TargetsEnum::Buildings));
 					{
-						FDropdown("Buildings", &tGroup.m_iBuildings, { "Sentry", "Dispenser", "Teleporter" }, {}, FDropdownEnum::Multi, 0, "All");
+						FDropdown("Buildings", &tGroup.m_iBuildings, { "Sentry", "Dispenser", "Teleporter", "##Divider", "Hurt" }, {}, FDropdownEnum::Multi, 0, "All");
 					}
 					PopTransparent();
 					PushTransparent(!(tGroup.m_iTargets & TargetsEnum::Projectiles));
 					{
-						FDropdown("Projectiles", &tGroup.m_iProjectiles, { "Rocket", "Sticky", "Pipe", "Arrow", "Heal", "Flare", "Fire", "Repair", "Cleaver", "Milk", "Jarate", "Gas", "Bauble", "Baseball", "Energy", "Short circuit", "Meteor shower", "Lightning", "Fireball", "Bomb", "Bats", "Pumpkin", "Monoculus", "Skeleton", "Misc" }, {}, FDropdownEnum::Multi, 0, "All");
+						FDropdown("Projectiles", &tGroup.m_iProjectiles, { "Rocket", "Sticky", "Pipe", "Arrow", "Heal", "Flare", "Fire", "Repair", "Cleaver", "Milk", "Jarate", "Gas", "Bauble", "Baseball", "Energy", "Short circuit", "Meteor shower", "Lightning", "Fireball", "Bomb", "Bats", "Pumpkin", "Monoculus", "Skeleton", "Misc", "##Divider", "Crit", "Minicrit" }, {}, FDropdownEnum::Multi, 0, "All");
 					}
 					PopTransparent();
 				} EndSection();
@@ -715,7 +725,7 @@ void CMenu::MenuVisuals(int iTab)
 
 					FToggle("Pickup timer", &tGroup.m_bPickupTimer);
 
-					SetNextWindowSize({ H::Draw.Scale(300), 0});
+					SetNextWindowSize({ H::Draw.Scale(300), 0 });
 					if (FBeginPopup("Backtrack"))
 					{
 						SetCursorPosY(GetCursorPosY() - H::Draw.Scale(8));
@@ -743,7 +753,7 @@ void CMenu::MenuVisuals(int iTab)
 					SetNextWindowSize({ H::Draw.Scale(300), 0 });
 					if (FBeginPopup("OffscreenArrows"))
 					{
-						FSlider("Offset", &tGroup.m_iOffscreenArrowsOffset, 0, 1000, 25, "%i", FSliderEnum::Min | FSliderEnum::Precision);
+						FSlider("Offset", &tGroup.m_iOffscreenArrowsOffset, 0, 1000, 25, "%i", FSliderEnum::Precision);
 						FSlider("Max distance", &tGroup.m_flOffscreenArrowsMaxDistance, 0.f, 5000.f, 50.f, "%g", FSliderEnum::Min | FSliderEnum::Precision);
 
 						EndPopup();
@@ -1235,27 +1245,18 @@ void CMenu::MenuLogs(int iTab)
 		{
 			if (I::EngineClient->IsInGame())
 			{
-				std::lock_guard lock(F::PlayerUtils.m_mutex);
+				std::lock_guard tLock(m_tMutex);
 				const auto& vPlayers = F::PlayerUtils.m_vPlayerCache;
 
 				std::unordered_map<uint64_t, std::vector<const ListPlayer*>> mParties = {};
-				std::unordered_map<uint64_t, float> mHues = {}; // don't just shift based on party id in the case that it will be similar
+				int iPartyCount = 0;
 				for (auto& tPlayer : vPlayers)
 				{
 					if (tPlayer.m_iParty)
+					{
 						mParties[tPlayer.m_iParty].push_back(&tPlayer);
-				}
-				for (auto it = mParties.begin(); it != mParties.end();)
-				{
-					if (it->second.size() > 1)
-						it++;
-					else
-						it = mParties.erase(it);
-				}
-				{
-					float flParties = mParties.size() + 1 - mParties.contains(1);
-					int i = 0; for (auto& [iParty, _] : mParties)
-						mHues[iParty] = iParty != 1 ? 360 * ++i / flParties : 0;
+						iPartyCount = std::max(iPartyCount, tPlayer.m_iParty);
+					}
 				}
 
 				auto getTeamColor = [&](int iTeam, bool bAlive)
@@ -1299,20 +1300,29 @@ void CMenu::MenuLogs(int iTab)
 						lOffset += FCalcTextSize(sName.c_str()).x + H::Draw.Scale(8);
 
 						// buttons
-						bool bClicked = false;
+						bool bPopup = false;
 
 						if (!tPlayer.m_bFake)
 						{
 							// tag bar
 							SetCursorPos({ vOriginalPos.x + lOffset, vOriginalPos.y });
-							if (BeginChild(std::format("TagBar{}", tPlayer.m_uAccountID).c_str(), { flWidth - lOffset - H::Draw.Scale(4), flHeight }, ImGuiWindowFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground))
+							if (BeginChild(std::format("TagBar{}", tPlayer.m_iUserID).c_str(), { flWidth - lOffset - H::Draw.Scale(4), flHeight }, ImGuiWindowFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground))
 							{
 								std::vector<PriorityLabel_t> vLabels = {};
 								std::vector<std::pair<PriorityLabel_t*, int>> vTags = {};
-								if (mHues.contains(tPlayer.m_iParty))
-									vLabels.emplace_back("Party", F::PlayerUtils.m_vTags[F::PlayerUtils.TagToIndex(PARTY_TAG)].m_tColor.HueShift(mHues[tPlayer.m_iParty]));
+								if (int iParty = tPlayer.m_iParty)
+								{
+									auto pTag = &F::PlayerUtils.m_vTags[F::PlayerUtils.TagToIndex(PARTY_TAG)];
+									if (!--iParty)
+										vTags.emplace_back(pTag, 0);
+									else
+										vLabels.emplace_back(std::format("{}: {}", pTag->m_sName, iParty), pTag->m_tColor.HueShift(iParty * 360.f / iPartyCount));
+								}
 								if (tPlayer.m_bF2P)
-									vTags.emplace_back(&F::PlayerUtils.m_vTags[F::PlayerUtils.TagToIndex(F2P_TAG)], 0);
+								{
+									auto pTag = &F::PlayerUtils.m_vTags[F::PlayerUtils.TagToIndex(F2P_TAG)];
+									vTags.emplace_back(pTag, 0);
+								}
 								for (auto& iID : F::PlayerUtils.GetPlayerTags(tPlayer.m_uAccountID))
 								{
 									if (auto pTag = F::PlayerUtils.GetTag(iID))
@@ -1331,7 +1341,7 @@ void CMenu::MenuLogs(int iTab)
 
 										GetWindowDrawList()->AddRectFilled(vDrawPos + vTagPos, { vDrawPos.x + vTagPos.x + flTagWidth, vDrawPos.y + vTagPos.y + flTagHeight }, tTagColor, H::Draw.Scale(4));
 										SetCursorPos({ vTagPos.x + H::Draw.Scale(5), vTagPos.y + H::Draw.Scale(3) });
-										TextColored(IsColorBright(tTagColor) ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1), tTag.m_sName.c_str());
+										TextColored(VecToColor(tColor).Blend(tTag.m_tColor).IsColorBright() ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1), tTag.m_sName.c_str());
 										if (iID)
 										{
 											SetCursorPos({ vTagPos.x + flTagWidth - H::Draw.Scale(22), vTagPos.y - H::Draw.Scale(2) });
@@ -1349,16 +1359,17 @@ void CMenu::MenuLogs(int iTab)
 								PopFont();
 							} EndChild();
 
-							bClicked = IsItemHovered() && IsMouseReleased(ImGuiMouseButton_Right);
+							bPopup = IsItemHovered() && IsMouseReleased(ImGuiMouseButton_Right);
 						}
 						SetCursorPos(vOriginalPos);
-						Button(std::format("##{}", tPlayer.m_uAccountID).c_str(), { flWidth, flHeight });
-						bClicked = bClicked || IsItemHovered() && IsMouseReleased(ImGuiMouseButton_Right);
+						Button(std::format("##{}", tPlayer.m_iUserID).c_str(), { flWidth, flHeight });
+						bPopup = bPopup || IsItemHovered() && IsMouseReleased(ImGuiMouseButton_Right);
 
 						// popups
-						if (bClicked)
-							OpenPopup(std::format("Clicked{}", tPlayer.m_uAccountID).c_str());
-						if (FBeginPopup(std::format("Clicked{}", tPlayer.m_uAccountID).c_str()))
+						if (bPopup)
+							OpenPopup(std::format("RightClicked{}", tPlayer.m_iUserID).c_str());
+
+						if (FBeginPopup(std::format("RightClicked{}", tPlayer.m_iUserID).c_str()))
 						{
 							PushStyleVar(ImGuiStyleVar_ItemSpacing, { H::Draw.Scale(8), H::Draw.Scale(8) });
 
@@ -1697,7 +1708,7 @@ void CMenu::MenuLogs(int iTab)
 					}
 
 					// buttons / icons
-					bool bClicked = false, bDelete = false;
+					bool bDelete = false;
 					if (!_tTag.m_bLocked)
 					{
 						SetCursorPos({ vOriginalPos.x + flWidth - H::Draw.Scale(26), vOriginalPos.y + H::Draw.Scale(2) });
@@ -1718,7 +1729,8 @@ void CMenu::MenuLogs(int iTab)
 					}
 
 					SetCursorPos(vOriginalPos);
-					bClicked = Button(std::format("##{}", _tTag.m_sName).c_str(), { flWidth, flHeight });
+					bool bClicked = Button(std::format("##{}", _tTag.m_sName).c_str(), { flWidth, flHeight });
+					bool bPopup = IsItemClicked(ImGuiMouseButton_Right);
 
 					if (bClicked)
 					{
@@ -1728,9 +1740,51 @@ void CMenu::MenuLogs(int iTab)
 						tTag.m_iPriority = _tTag.m_iPriority;
 						tTag.m_bLabel = _tTag.m_bLabel;
 					}
-					if (bDelete)
-						OpenPopup(std::format("Confirmation## DeleteTag{}", _iID).c_str());
-					if (FBeginPopupModal(std::format("Confirmation## DeleteTag{}", _iID).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+					else if (bPopup)
+						OpenPopup(std::format("RightClicked{}", _iID).c_str());
+					else if (bDelete)
+						OpenPopup(std::format("DeleteTag{}", _iID).c_str());
+
+					if (FBeginPopup(std::format("RightClicked{}", _iID).c_str()))
+					{
+						PushStyleVar(ImGuiStyleVar_ItemSpacing, { H::Draw.Scale(8), 0 });
+
+						auto& _tTag2 = *it;
+						bool bSave = false;
+
+						{
+							static std::string sInput = "";
+
+							bool bEnter = FInputText("Name...", sInput, H::Draw.Scale(284), ImGuiInputTextFlags_EnterReturnsTrue);
+							if (!IsItemFocused())
+								sInput = _tTag2.m_sName;
+							if (bEnter)
+							{
+								_tTag2.m_sName = sInput;
+								bSave = true;
+							}
+						}
+
+						PushDisabled(_iID == DEFAULT_TAG || _iID == IGNORED_TAG);
+						{
+							int iLabel = Disabled ? 0 : _tTag2.m_bLabel;
+							if (FDropdown("Type##", &iLabel, { "Priority", "Label" }))
+								bSave = true;
+							_tTag2.m_bLabel = iLabel;
+							if (Disabled)
+								_tTag2.m_bLabel = false;
+						}
+						PopDisabled();
+						if (FSlider("Priority##", &_tTag2.m_iPriority, -10, 10))
+							bSave = true;
+
+						if (bSave)
+							F::PlayerUtils.m_bSave = true;
+
+						PopStyleVar();
+						EndPopup();
+					}
+					else if (FBeginPopupModal(std::format("DeleteTag{}", _iID).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 					{
 						FText(std::format("Do you really want to delete '{}'?", _tTag.m_sName).c_str());
 
@@ -1907,7 +1961,7 @@ void CMenu::MenuLogs(int iTab)
 							{
 								for (auto& [sName, tChild] : *tSub)
 								{
-									uint32_t uAccountID = std::stoi(sName);
+									uint32_t uAccountID = std::stoul(sName);
 									for (auto& [_, tTag] : tChild)
 									{
 										const std::string& sTag = tTag.data();
@@ -1927,7 +1981,7 @@ void CMenu::MenuLogs(int iTab)
 							{
 								for (auto& [sName, tAlias] : *tSub)
 								{
-									uint32_t uAccountID = std::stoi(sName);
+									uint32_t uAccountID = std::stoul(sName);
 									const std::string& sAlias = tAlias.data();
 
 									if (!sAlias.empty())
@@ -1945,7 +1999,7 @@ void CMenu::MenuLogs(int iTab)
 										mAs[i] = -1;
 								}
 							}
-							OpenPopup("Import playerlist");
+							OpenPopup("ImportPlayerlist");
 						}
 						catch (...)
 						{
@@ -1954,7 +2008,7 @@ void CMenu::MenuLogs(int iTab)
 					}
 
 					SetNextWindowSize({ H::Draw.Scale(300), 0 });
-					if (FBeginPopupModal("Import playerlist", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+					if (FBeginPopupModal("ImportPlayerlist", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 					{
 						FText("Import");
 						FText("As", FTextEnum::Right | FTextEnum::SameLine);
@@ -2258,6 +2312,7 @@ void CMenu::MenuSettings(int iTab)
 					auto& sPath = !bVisual ? F::Configs.m_sConfigPath : F::Configs.m_sVisualsPath;
 					auto& sConfig = !bVisual ? F::Configs.m_sCurrentConfig : F::Configs.m_sCurrentVisuals;
 					auto sType = !bVisual ? "Config" : "Visual";
+					bool bNoSave = GetAsyncKeyState(VK_SHIFT) & 0x8000;
 
 					FSDropdown("Name", &sStaticName, {}, FSDropdownEnum::AutoUpdate, -H::Draw.Unscale(FCalcTextSize("CREATE").x + FCalcTextSize("FOLDER").x) - 72);
 					PushDisabled(sStaticName.empty());
@@ -2277,20 +2332,21 @@ void CMenu::MenuSettings(int iTab)
 					PopDisabled();
 					if (FButton("Folder", FButtonEnum::Fit | FButtonEnum::SameLine, { 0, 40 }))
 						ShellExecuteA(NULL, NULL, sPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+					vRowSizes.clear();
 
 					std::vector<std::pair<std::filesystem::directory_entry, std::string>> vConfigs = {};
 					bool bDefaultFound = false;
-					for (auto& entry : std::filesystem::directory_iterator(sPath))
+					for (auto& tEntry : std::filesystem::directory_iterator(sPath))
 					{
-						if (!entry.is_regular_file() || entry.path().extension() != F::Configs.m_sConfigExtension)
+						if (!tEntry.is_regular_file() || tEntry.path().extension() != F::Configs.m_sConfigExtension)
 							continue;
 
-						std::string sConfigName = entry.path().filename().string();
-						sConfigName.erase(sConfigName.end() - F::Configs.m_sConfigExtension.size(), sConfigName.end());
-						if (FNV1A::Hash32(sConfigName.c_str()) == FNV1A::Hash32Const("default"))
+						std::string sName = tEntry.path().filename().string();
+						sName.erase(sName.end() - F::Configs.m_sConfigExtension.size(), sName.end());
+						if (FNV1A::Hash32(sName.c_str()) == FNV1A::Hash32Const("default"))
 							bDefaultFound = true;
 
-						vConfigs.emplace_back(entry, sConfigName);
+						vConfigs.emplace_back(tEntry, sName);
 					}
 					if (!bVisual)
 					{
@@ -2314,34 +2370,40 @@ void CMenu::MenuSettings(int iTab)
 						ImVec2 vOriginalPos = GetCursorPos();
 
 						SetCursorPos({ vOriginalPos.x + H::Draw.Scale(2), vOriginalPos.y + H::Draw.Scale(9) });
-						if (IconButton(bCurrentConfig ? ICON_MD_REFRESH : ICON_MD_DOWNLOAD))
-						{
-							if (!bVisual)
-								F::Configs.LoadConfig(sConfigName);
-							else
-								F::Configs.LoadVisual(sConfigName);
-						}
+						bool bLoad = IconButton(bCurrentConfig ? ICON_MD_REFRESH : ICON_MD_DOWNLOAD);
+						FTooltip(ICON_MD_ADD ICON_MD_FILE_UPLOAD_OFF, bNoSave && IsItemHovered(), 300.f, F::Render.IconFont);
 
 						SetCursorPos({ H::Draw.Scale(43), vOriginalPos.y + H::Draw.Scale(14) });
 						TextColored(bCurrentConfig ? F::Render.Active.Value : F::Render.Inactive.Value, TruncateText(sConfigName, GetWindowWidth() - GetStyle().WindowPadding.x * 2 - H::Draw.Scale(80)).c_str());
 
 						int iOffset = 9;
 						SetCursorPos({ GetWindowWidth() - H::Draw.Scale(iOffset += 25), vOriginalPos.y + H::Draw.Scale(9) });
-						if (IconButton(ICON_MD_DELETE))
-							OpenPopup(std::format("Confirmation## Remove{}{}", sType, sConfigName).c_str());
+						bool bDelete = IconButton(ICON_MD_DELETE);
 
 						SetCursorPos({ GetWindowWidth() - H::Draw.Scale(iOffset += 25), vOriginalPos.y + H::Draw.Scale(9) });
-						if (IconButton(ICON_MD_SAVE))
+						bool bSave = IconButton(ICON_MD_SAVE);
+						FTooltip(ICON_MD_ADD ICON_MD_FILE_DOWNLOAD_OFF, bNoSave && IsItemHovered(), 300.f, F::Render.IconFont);
+
+						if (bLoad)
+						{
+							if (!bVisual)
+								F::Configs.LoadConfig(sConfigName);
+							else
+								F::Configs.LoadVisual(sConfigName);
+						}
+						else if (bSave)
 						{
 							if (!bCurrentConfig || !bVisual && !F::Configs.m_sCurrentVisuals.empty())
-								OpenPopup(std::format("Confirmation## Save{}{}", sType, sConfigName).c_str());
+								OpenPopup(std::format("Save{}{}", sType, sConfigName).c_str());
 							else if (!bVisual)
 								F::Configs.SaveConfig(sConfigName);
 							else
 								F::Configs.SaveVisual(sConfigName);
 						}
+						else if (bDelete)
+							OpenPopup(std::format("Remove{}{}", sType, sConfigName).c_str());
 
-						if (FBeginPopupModal(std::format("Confirmation## Save{}{}", sType, sConfigName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+						if (FBeginPopupModal(std::format("Save{}{}", sType, sConfigName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 						{
 							FText(std::format("Do you really want to override '{}'?", sConfigName).c_str());
 
@@ -2358,8 +2420,7 @@ void CMenu::MenuSettings(int iTab)
 
 							EndPopup();
 						}
-
-						if (FBeginPopupModal(std::format("Confirmation## Remove{}{}", sType, sConfigName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+						else if (FBeginPopupModal(std::format("Remove{}{}", sType, sConfigName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 						{
 							FText(std::format("Do you really want to remove '{}'?", sConfigName).c_str());
 
@@ -2402,9 +2463,11 @@ void CMenu::MenuSettings(int iTab)
 
 				drawConfigs(sStaticName);
 			} EndSection();
-			SetCursorPosX(GetCursorPosX() + 8);
 			PushStyleColor(ImGuiCol_Text, F::Render.Inactive.Value);
+			SetCursorPosX(GetCursorPosX() + GetStyle().WindowPadding.x);
 			FText("Built @ " __DATE__ ", " __TIME__ ", " __CONFIGURATION__);
+			//SetCursorPosX(GetCursorPosX() + GetStyle().WindowPadding.x);
+			//FText(std::format("Time @ {}, {}", SDK::GetDate(), SDK::GetTime()).c_str());
 			PopStyleColor();
 
 			/* Column 2 */
@@ -2519,14 +2582,13 @@ void CMenu::MenuSettings(int iTab)
 					std::unordered_map<int, bool> mBinds = {};
 					std::function<void(int)> getBinds = [&](int iParent)
 						{
-							for (auto it = F::Binds.m_vBinds.begin(); it < F::Binds.m_vBinds.end(); it++)
+							for (int _iBind = 0; _iBind < F::Binds.m_vBinds.size(); _iBind++)
 							{
-								int _iBind = std::distance(F::Binds.m_vBinds.begin(), it);
-								auto& _tBind = *it;
+								auto& _tBind = F::Binds.m_vBinds[_iBind];
 								if (iParent != _tBind.m_iParent || mBinds.contains(_iBind))
 									continue;
 
-								mBinds[_iBind] = true;
+								mBinds[_iBind];
 
 								i++;
 								//if (iParent == iLayer && iNumber >= i)
@@ -2555,7 +2617,6 @@ void CMenu::MenuSettings(int iTab)
 				int iTo = positionToIndex(GetMousePos() - GetDrawPos(), iLayer);
 				if (iTo != -1 && iDragging != iTo)
 				{
-					SDK::Output("Dragged", std::format("{} -> {}", iDragging, iTo).c_str(), { 255, 0, 255 }, OUTPUT_CONSOLE | OUTPUT_DEBUG);
 					F::Binds.Move(iDragging, iTo);
 					iDragging = iTo;
 				}
@@ -2564,14 +2625,13 @@ void CMenu::MenuSettings(int iTab)
 			std::unordered_map<int, bool> mBinds = {};
 			std::function<void(int, int)> getBinds = [&](int iParent, int x)
 				{
-					for (auto it = F::Binds.m_vBinds.begin(); it < F::Binds.m_vBinds.end(); it++)
+					for (int _iBind = 0; _iBind < F::Binds.m_vBinds.size(); _iBind++)
 					{
-						int _iBind = std::distance(F::Binds.m_vBinds.begin(), it);
-						auto& _tBind = *it;
+						auto& _tBind = F::Binds.m_vBinds[_iBind];
 						if (iParent != DEFAULT_BIND - 1 && iParent != _tBind.m_iParent || mBinds.contains(_iBind))
 							continue;
 
-						mBinds[_iBind] = true;
+						mBinds[_iBind];
 
 						std::string sType; std::string sInfo;
 						switch (_tBind.m_iType)
@@ -2713,30 +2773,14 @@ void CMenu::MenuSettings(int iTab)
 							OpenPopup(std::format("RightClicked{}", _iBind).c_str());
 						else if (iDragging == -1 && IsItemHovered() && IsMouseDown(ImGuiMouseButton_Left))
 							iDragging = _iBind, iLayer = iParent;
-						if (bDelete)
+						else if (bDelete)
 						{
 							if (U::KeyHandler.Down(VK_SHIFT)) // allow user to quickly remove binds
 								F::Binds.RemoveBind(_iBind);
 							else
-								OpenPopup(std::format("Confirmation## DeleteBind{}", _iBind).c_str());
+								OpenPopup(std::format("DeleteBind{}", _iBind).c_str());
 						}
-						if (FBeginPopupModal(std::format("Confirmation## DeleteBind{}", _iBind).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
-						{
-							FText(std::format("Do you really want to delete '{}'{}?", _tBind.m_sName, F::Binds.HasChildren(_iBind) ? " and all of its children" : "").c_str());
 
-							if (FButton("Yes", FButtonEnum::Left))
-							{
-								F::Binds.RemoveBind(_iBind);
-								CloseCurrentPopup();
-
-								iBind = DEFAULT_BIND;
-								tBind = {};
-							}
-							if (FButton("No", FButtonEnum::Right | FButtonEnum::SameLine))
-								CloseCurrentPopup();
-
-							EndPopup();
-						}
 						if (FBeginPopup(std::format("RightClicked{}", _iBind).c_str()))
 						{
 							PushStyleVar(ImGuiStyleVar_ItemSpacing, { H::Draw.Scale(8), 0 });
@@ -2763,6 +2807,23 @@ void CMenu::MenuSettings(int iTab)
 								FKeybind("Key", _tBind.m_iKey);
 
 							PopStyleVar();
+							EndPopup();
+						}
+						else if (FBeginPopupModal(std::format("DeleteBind{}", _iBind).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+						{
+							FText(std::format("Do you really want to delete '{}'{}?", _tBind.m_sName, F::Binds.HasChildren(_iBind) ? " and all of its children" : "").c_str());
+
+							if (FButton("Yes", FButtonEnum::Left))
+							{
+								F::Binds.RemoveBind(_iBind);
+								CloseCurrentPopup();
+
+								iBind = DEFAULT_BIND;
+								tBind = {};
+							}
+							if (FButton("No", FButtonEnum::Right | FButtonEnum::SameLine))
+								CloseCurrentPopup();
+
 							EndPopup();
 						}
 
@@ -2864,8 +2925,8 @@ void CMenu::MenuSettings(int iTab)
 					{
 						SetCursorPos({ GetWindowWidth() - H::Draw.Scale(iOffset += 25), vOriginalPos.y + H::Draw.Scale(9) });
 						if (IconButton(ICON_MD_DELETE))
-							OpenPopup(std::format("Confirmation## DeleteMat{}", tMaterial.m_sName).c_str());
-						if (FBeginPopupModal(std::format("Confirmation## DeleteMat{}", tMaterial.m_sName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+							OpenPopup(std::format("DeleteMat{}", tMaterial.m_sName).c_str());
+						if (FBeginPopupModal(std::format("DeleteMat{}", tMaterial.m_sName).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 						{
 							FText(std::format("Do you really want to delete '{}'?", tMaterial.m_sName).c_str());
 
@@ -3003,7 +3064,7 @@ void CMenu::MenuSettings(int iTab)
 
 					EndPopup();
 				}
-				if (FBeginPopupModal("LockAchievements", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+				else if (FBeginPopupModal("LockAchievements", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 				{
 					FText("Do you really want to lock all achievements?");
 
@@ -3324,7 +3385,7 @@ struct DragBoxStorage_t
 	DragBox_t m_tDragBox;
 	float m_flScale;
 };
-static std::unordered_map<uint32_t, DragBoxStorage_t> mDragBoxStorage = {};
+static std::unordered_map<uint32_t, DragBoxStorage_t> s_mDragBoxStorage = {};
 void CMenu::AddDraggable(const char* sLabel, ConfigVar<DragBox_t>& var, bool bShouldDraw, ImVec2 vSize)
 {
 	using namespace ImGui;
@@ -3335,8 +3396,8 @@ void CMenu::AddDraggable(const char* sLabel, ConfigVar<DragBox_t>& var, bool bSh
 	auto tDragBox = FGet(var, true);
 	auto uHash = FNV1A::Hash32(sLabel);
 
-	bool bContains = mDragBoxStorage.contains(uHash);
-	auto& tStorage = mDragBoxStorage[uHash];
+	bool bContains = s_mDragBoxStorage.contains(uHash);
+	auto& tStorage = s_mDragBoxStorage[uHash];
 
 	SetNextWindowSize(vSize, ImGuiCond_Always);
 	if (!bContains || tDragBox != tStorage.m_tDragBox || H::Draw.Scale() != tStorage.m_flScale)
@@ -3372,7 +3433,7 @@ struct WindowBoxStorage_t
 	WindowBox_t m_tWindowBox;
 	float m_flScale;
 };
-static std::unordered_map<uint32_t, WindowBoxStorage_t> mWindowBoxStorage = {};
+static std::unordered_map<uint32_t, WindowBoxStorage_t> s_mWindowBoxStorage = {};
 void CMenu::AddResizableDraggable(const char* sLabel, ConfigVar<WindowBox_t>& var, bool bShouldDraw, ImVec2 vMinSize, ImVec2 vMaxSize, ImGuiSizeCallback fCustomCallback)
 {
 	using namespace ImGui;
@@ -3383,8 +3444,8 @@ void CMenu::AddResizableDraggable(const char* sLabel, ConfigVar<WindowBox_t>& va
 	auto tWindowBox = FGet(var, true);
 	auto uHash = FNV1A::Hash32(sLabel);
 
-	bool bContains = mWindowBoxStorage.contains(uHash);
-	auto& tStorage = mWindowBoxStorage[uHash];
+	bool bContains = s_mWindowBoxStorage.contains(uHash);
+	auto& tStorage = s_mWindowBoxStorage[uHash];
 
 	SetNextWindowSizeConstraints(vMinSize, vMaxSize, fCustomCallback);
 	if (!bContains || tWindowBox != tStorage.m_tWindowBox || H::Draw.Scale() != tStorage.m_flScale)
@@ -3438,10 +3499,9 @@ void CMenu::DrawBinds()
 	std::vector<BindInfo_t> vInfo;
 	std::function<void(int)> getBinds = [&](int iParent)
 		{
-			for (auto it = F::Binds.m_vBinds.begin(); it < F::Binds.m_vBinds.end(); it++)
+			for (int iBind = 0; iBind < F::Binds.m_vBinds.size(); iBind++)
 			{
-				int iBind = std::distance(F::Binds.m_vBinds.begin(), it);
-				auto& tBind = *it;
+				auto& tBind = F::Binds.m_vBinds[iBind];
 				if (iParent != tBind.m_iParent || !tBind.m_bEnabled && !m_bIsOpen)
 					continue;
 
@@ -3503,10 +3563,10 @@ void CMenu::DrawBinds()
 	if (vInfo.empty())
 		return;
 
-	static DragBox_t old = { -2147483648, -2147483648 };
-	DragBox_t info = m_bIsOpen ? FGet(Vars::Menu::BindsDisplay, true) : Vars::Menu::BindsDisplay.Value;
-	if (info != old)
-		SetNextWindowPos({ float(info.x), float(info.y) }, ImGuiCond_Always);
+	static DragBox_t tOld = { -2147483648, -2147483648 };
+	DragBox_t tDragBox = m_bIsOpen ? FGet(Vars::Menu::BindsDisplay, true) : Vars::Menu::BindsDisplay.Value;
+	if (tDragBox != tOld)
+		SetNextWindowPos({ float(tDragBox.x), float(tDragBox.y) }, ImGuiCond_Always);
 
 	float flNameWidth = 0, flInfoWidth = 0, flStateWidth = 0;
 	PushFont(F::Render.FontSmall);
@@ -3532,9 +3592,9 @@ void CMenu::DrawBinds()
 		else
 			RenderBackground(F::Render.Background0p5, F::Render.Background2);
 
-		info.x = vWindowPos.x; info.y = vWindowPos.y; old = info;
+		tDragBox.x = vWindowPos.x; tDragBox.y = vWindowPos.y; tOld = tDragBox;
 		if (m_bIsOpen)
-			FSet(Vars::Menu::BindsDisplay, info);
+			FSet(Vars::Menu::BindsDisplay, tDragBox);
 
 		int iListStart = 8;
 		if (Vars::Menu::BindWindowTitle.Value)
@@ -3576,32 +3636,36 @@ void CMenu::DrawBinds()
 				bool bDelete = IconButton(ICON_MD_DELETE, H::Draw.Scale(18));
 
 				SetCursorPos({ flWidth - H::Draw.Scale(51), H::Draw.Scale(iListStart - 2 + 18 * i) });
-				if (IconButton(!tBind.m_bNot ? ICON_MD_CODE : ICON_MD_CODE_OFF, H::Draw.Scale(18)))
-					tBind.m_bNot = !tBind.m_bNot;
+				bool bNot = IconButton(!tBind.m_bNot ? ICON_MD_CODE : ICON_MD_CODE_OFF, H::Draw.Scale(18));
 
 				PushTransparent(Transparent || tBind.m_iVisibility == BindVisibilityEnum::Hidden, true);
 				SetCursorPos({ flWidth - H::Draw.Scale(76), H::Draw.Scale(iListStart - 2 + 18 * i) });
-				if (IconButton(tBind.m_iVisibility == BindVisibilityEnum::Always ? ICON_MD_VISIBILITY : ICON_MD_VISIBILITY_OFF, H::Draw.Scale(18)))
-					tBind.m_iVisibility = (tBind.m_iVisibility + 1) % 3;
+				bool bVisibility = IconButton(tBind.m_iVisibility == BindVisibilityEnum::Always ? ICON_MD_VISIBILITY : ICON_MD_VISIBILITY_OFF, H::Draw.Scale(18));
 				PopTransparent(1, 1);
 
 				SetCursorPos({ flWidth - H::Draw.Scale(101), H::Draw.Scale(iListStart - 2 + 18 * i) });
-				if (IconButton(tBind.m_bEnabled ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF, H::Draw.Scale(18)))
-					tBind.m_bEnabled = !tBind.m_bEnabled;
+				bool bEnable = IconButton(tBind.m_bEnabled ? ICON_MD_TOGGLE_ON : ICON_MD_TOGGLE_OFF, H::Draw.Scale(18));
 
 				PopTransparent(1, 1);
 
 				PushFont(F::Render.FontRegular);
 				PushStyleVar(ImGuiStyleVar_WindowPadding, { H::Draw.Scale(8), H::Draw.Scale(8) });
 
-				if (bDelete)
+				if (bEnable)
+					tBind.m_bEnabled = !tBind.m_bEnabled;
+				else if (bVisibility)
+					tBind.m_iVisibility = (tBind.m_iVisibility + 1) % 3;
+				else if (bNot)
+					tBind.m_bNot = !tBind.m_bNot;
+				else if (bDelete)
 				{
 					if (U::KeyHandler.Down(VK_SHIFT)) // allow user to quickly remove binds
 						F::Binds.RemoveBind(iBind);
 					else
-						OpenPopup(std::format("Confirmation## DeleteBind{}", iBind).c_str());
+						OpenPopup(std::format("DeleteBind{}", iBind).c_str());
 				}
-				if (FBeginPopupModal(std::format("Confirmation## DeleteBind{}", iBind).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
+
+				if (FBeginPopupModal(std::format("DeleteBind{}", iBind).c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysUseWindowPadding))
 				{
 					FText(std::format("Do you really want to delete '{}'{}?", tBind.m_sName, F::Binds.HasChildren(iBind) ? " and all of its children" : "").c_str());
 

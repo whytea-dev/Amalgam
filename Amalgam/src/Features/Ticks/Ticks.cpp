@@ -1,7 +1,7 @@
 #include "Ticks.h"
 
-#include "../NetworkFix/NetworkFix.h"
 #include "../PacketManip/AntiAim/AntiAim.h"
+#include "../EnginePrediction/EnginePrediction.h"
 #include "../Aimbot/AutoRocketJump/AutoRocketJump.h"
 #include "../Backtrack/Backtrack.h"
 
@@ -165,10 +165,9 @@ void CTicks::MoveFunc(float accumulated_extra_samples, bool bFinalTick)
 	CL_Move->Call<void>(accumulated_extra_samples, bFinalTick);
 }
 
-void CTicks::Move(float accumulated_extra_samples, bool bFinalTick, CTFPlayer* pLocal)
+void CTicks::Move(float accumulated_extra_samples, bool bFinalTick)
 {
-	F::NetworkFix.FixInputDelay(bFinalTick);
-	MoveManage(pLocal);
+	MoveManage();
 
 	if (auto pWeapon = H::Entities.GetWeapon())
 	{
@@ -189,7 +188,7 @@ void CTicks::Move(float accumulated_extra_samples, bool bFinalTick, CTFPlayer* p
 	else
 		m_iWait = 2;
 
-	static auto sv_maxusrcmdprocessticks = U::ConVars.FindVar("sv_maxusrcmdprocessticks");
+	static auto sv_maxusrcmdprocessticks = H::ConVars.FindVar("sv_maxusrcmdprocessticks");
 	m_iMaxShift = sv_maxusrcmdprocessticks->GetInt();
 	if (Vars::Misc::Game::AntiCheatCompatibility.Value)
 		m_iMaxShift = std::min(m_iMaxShift, 8);
@@ -218,7 +217,7 @@ void CTicks::Move(float accumulated_extra_samples, bool bFinalTick, CTFPlayer* p
 			MoveFunc(accumulated_extra_samples, m_iShiftedTicks - 1 == m_iShiftedGoal);
 		}
 
-		m_bShifting = m_bAntiWarp = false;
+		m_bShifting = m_bAntiWarp = m_bTimingUnsure = false;
 		if (m_bWarp)
 			m_iDeficit = 0;
 
@@ -231,8 +230,9 @@ void CTicks::Move(float accumulated_extra_samples, bool bFinalTick, CTFPlayer* p
 	}
 }
 
-void CTicks::MoveManage(CTFPlayer* pLocal)
+void CTicks::MoveManage()
 {
+	auto pLocal = H::Entities.GetLocal();
 	if (!pLocal)
 		return;
 
@@ -241,7 +241,7 @@ void CTicks::MoveManage(CTFPlayer* pLocal)
 	Speedhack();
 }
 
-void CTicks::CreateMove(CTFPlayer* pLocal, CUserCmd* pCmd, bool* pSendPacket)
+void CTicks::CreateMove(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd, bool* pSendPacket)
 {
 	Doubletap(pLocal, pCmd);
 	AntiWarp(pLocal, pCmd);
@@ -249,6 +249,9 @@ void CTicks::CreateMove(CTFPlayer* pLocal, CUserCmd* pCmd, bool* pSendPacket)
 
 	SaveShootPos(pLocal);
 	SaveShootAngle(pCmd, *pSendPacket);
+
+	if (m_bDoubletap && m_iShiftedTicks == m_iShiftStart && pWeapon && pWeapon->IsInReload())
+		m_bTimingUnsure = true;
 }
 
 void CTicks::ManagePacket(CUserCmd* pCmd, bool* pSendPacket)
@@ -276,9 +279,38 @@ void CTicks::ManagePacket(CUserCmd* pCmd, bool* pSendPacket)
 	}
 }
 
+void CTicks::Start(CTFPlayer* pLocal, CUserCmd* pCmd)
+{
+	Vec2 vOriginalMove; int iOriginalButtons;
+	if (m_bPredictAntiwarp = m_bAntiWarp || GetTicks(H::Entities.GetWeapon()) && Vars::Doubletap::AntiWarp.Value && pLocal->m_hGroundEntity())
+	{
+		vOriginalMove = { pCmd->forwardmove, pCmd->sidemove };
+		iOriginalButtons = pCmd->buttons;
+
+		AntiWarp(pLocal, pCmd->viewangles.y, pCmd->forwardmove, pCmd->sidemove);
+	}
+
+	F::EnginePrediction.Start(pLocal, pCmd);
+
+	if (m_bPredictAntiwarp)
+	{
+		pCmd->forwardmove = vOriginalMove.x, pCmd->sidemove = vOriginalMove.y;
+		pCmd->buttons = iOriginalButtons;
+	}
+}
+
+void CTicks::End(CTFPlayer* pLocal, CUserCmd* pCmd)
+{
+	if (m_bPredictAntiwarp && !m_bAntiWarp && !G::Attacking)
+	{
+		F::EnginePrediction.End(pLocal, pCmd);
+		F::EnginePrediction.Start(pLocal, pCmd);
+	}
+}
+
 bool CTicks::CanChoke()
 {
-	static auto sv_maxusrcmdprocessticks = U::ConVars.FindVar("sv_maxusrcmdprocessticks");
+	static auto sv_maxusrcmdprocessticks = H::ConVars.FindVar("sv_maxusrcmdprocessticks");
 	int iMaxTicks = sv_maxusrcmdprocessticks->GetInt();
 	if (Vars::Misc::Game::AntiCheatCompatibility.Value)
 		iMaxTicks = std::min(iMaxTicks, 8);
@@ -344,7 +376,7 @@ Vec3 CTicks::GetShootPos()
 
 void CTicks::SaveShootAngle(CUserCmd* pCmd, bool bSendPacket)
 {
-	static auto sv_maxusrcmdprocessticks_holdaim = U::ConVars.FindVar("sv_maxusrcmdprocessticks_holdaim");
+	static auto sv_maxusrcmdprocessticks_holdaim = H::ConVars.FindVar("sv_maxusrcmdprocessticks_holdaim");
 
 	if (bSendPacket)
 		m_bShootAngle = false;
@@ -356,6 +388,11 @@ Vec3* CTicks::GetShootAngle()
 	if (m_bShootAngle && I::ClientState->chokedcommands)
 		return &m_vShootAngle;
 	return nullptr;
+}
+
+bool CTicks::IsTimingUnsure()
+{	// actually knowing when we'll shoot would be better than this, but this is fine for now
+	return m_bTimingUnsure || m_bSpeedhack /*|| m_bWarp*/;
 }
 
 void CTicks::Draw(CTFPlayer* pLocal)

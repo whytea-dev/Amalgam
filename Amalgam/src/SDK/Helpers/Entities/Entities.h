@@ -1,17 +1,15 @@
 #pragma once
 #include "../../../Utils/Macros/Macros.h"
 #include "../../Definitions/Classes.h"
-#include <unordered_map>
+#include "../../Vars.h"
 
-enum struct EGroupType
-{
-	GROUP_INVALID = -1,
-	PLAYERS_ALL, PLAYERS_ENEMIES, PLAYERS_TEAMMATES,
-	BUILDINGS_ALL, BUILDINGS_ENEMIES, BUILDINGS_TEAMMATES,
-	PICKUPS_HEALTH, PICKUPS_AMMO, PICKUPS_MONEY, PICKUPS_POWERUP, PICKUPS_SPELLBOOK,
-	WORLD_PROJECTILES, WORLD_OBJECTIVE, WORLD_NPC, WORLD_BOMBS, WORLD_GARGOYLE,
-	MISC_LOCAL_STICKIES, MISC_LOCAL_FLARES, MISC_DOTS
-};
+Enum(Entity, Invalid = -1,
+	PlayerAll, PlayerEnemy, PlayerTeam,
+	BuildingAll, BuildingEnemy, BuildingTeam,
+	PickupHealth, PickupAmmo, PickupMoney, PickupPowerup, PickupSpellbook, PickupGargoyle,
+	WorldProjectile, WorldObjective, WorldNPC, WorldBomb,
+	LocalStickies, LocalFlares, SniperDots
+)
 
 struct DormantData
 {
@@ -34,7 +32,7 @@ private:
 	CTFWeaponBase* m_pLocalWeapon = nullptr;
 	CTFPlayerResource* m_pPlayerResource = nullptr;
 
-	std::unordered_map<EGroupType, std::vector<CBaseEntity*>> m_mGroups = {};
+	std::unordered_map<EntityEnum::EntityEnum, std::vector<CBaseEntity*>> m_mGroups = {};
 
 	std::unordered_map<int, float> m_mDeltaTimes = {}, m_mLagTimes = {};
 	std::unordered_map<int, int> m_mChokes = {}, m_mSetTicks = {};
@@ -49,13 +47,14 @@ private:
 	std::unordered_map<uint32_t, int> m_mUPriorities = {};
 	std::unordered_map<int, bool> m_mIFriends = {};
 	std::unordered_map<uint32_t, bool> m_mUFriends = {};
-	std::unordered_map<int, uint64_t> m_mIParty = {};
-	std::unordered_map<uint32_t, uint64_t> m_mUParty = {};
+	std::unordered_map<int, int> m_mIParty = {};
+	std::unordered_map<uint32_t, int> m_mUParty = {};
 	std::unordered_map<int, bool> m_mIF2P = {};
 	std::unordered_map<uint32_t, bool> m_mUF2P = {};
 	std::unordered_map<int, int> m_mILevels = {};
 	std::unordered_map<uint32_t, int> m_mULevels = {};
 	uint32_t m_uAccountID;
+	int m_iPartyCount = 0;
 
 public:
 	void Store();
@@ -71,13 +70,13 @@ public:
 	CTFWeaponBase* GetWeapon();
 	CTFPlayerResource* GetResource();
 
-	const std::vector<CBaseEntity*>& GetGroup(const EGroupType& Group);
+	const std::vector<CBaseEntity*>& GetGroup(const EntityEnum::EntityEnum iGroup);
 
 	float GetDeltaTime(int iIndex);
 	float GetLagTime(int iIndex);
 	int GetChoke(int iIndex);
 	Vec3 GetEyeAngles(int iIndex);
-	Vec3 GetPingAngles(int iIndex);
+	Vec3 GetDeltaAngles(int iIndex);
 	bool GetLagCompensation(int iIndex);
 	void SetLagCompensation(int iIndex, bool bLagComp);
 	bool GetDormancy(int iIndex);
@@ -96,8 +95,9 @@ public:
 	bool IsF2P(uint32_t uAccountID);
 	int GetLevel(int iIndex);
 	int GetLevel(uint32_t uAccountID);
-	uint64_t GetParty(int iIndex);
-	uint64_t GetParty(uint32_t uAccountID);
+	int GetParty(int iIndex);
+	int GetParty(uint32_t uAccountID);
+	int GetPartyCount();
 };
 
 ADD_FEATURE_CUSTOM(CEntities, Entities, H);

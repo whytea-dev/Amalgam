@@ -11,16 +11,24 @@ MAKE_SIGNATURE(CAttributeManager_AttribHookFloat, "client.dll", "4C 8B DC 49 89 
 
 static BOOL CALLBACK TeamFortressWindow(HWND hWindow, LPARAM lParam)
 {
-	char windowTitle[1024];
-	GetWindowTextA(hWindow, windowTitle, sizeof(windowTitle));
-	switch (FNV1A::Hash32(windowTitle))
+	DWORD iProcess1 = GetCurrentProcessId();
+	DWORD iProcess2; GetWindowThreadProcessId(hWindow, &iProcess2);
+	if (iProcess1 != iProcess2)
+		return TRUE;
+
+	char sWindowTitle[64];
+	GetWindowText(hWindow, sWindowTitle, sizeof(sWindowTitle));
+	switch (FNV1A::Hash32(sWindowTitle))
 	{
 	case FNV1A::Hash32Const("Team Fortress 2 - Direct3D 9 - 64 Bit"):
 	case FNV1A::Hash32Const("Team Fortress 2 - Vulkan - 64 Bit"):
-		*reinterpret_cast<HWND*>(lParam) = hWindow;
+		break;
+	default:
+		return TRUE;
 	}
 
-	return TRUE;
+	*reinterpret_cast<HWND*>(lParam) = hWindow;
+	return FALSE;
 }
 
 
@@ -100,6 +108,22 @@ std::string SDK::GetClipboard()
 		CloseClipboard();
 	}
 	return sString;
+}
+
+std::string SDK::GetDate()
+{
+	time_t tTime = time(nullptr);
+	tm timeinfo; localtime_s(&timeinfo, &tTime);
+	char buffer[16]; strftime(buffer, sizeof(buffer), "%b %e %Y", &timeinfo);
+	return buffer;
+}
+
+std::string SDK::GetTime()
+{
+	time_t tTime = time(nullptr);
+	tm timeinfo; localtime_s(&timeinfo, &tTime);
+	char buffer[16]; strftime(buffer, sizeof(buffer), "%T", &timeinfo);
+	return buffer;
 }
 
 HWND SDK::GetTeamFortressWindow()
@@ -208,13 +232,11 @@ bool SDK::W2S(const Vec3& vOrigin, Vec3& vScreen, bool bAlways)
 	return bOnScreen;
 }
 
-bool SDK::IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* pLeft, float* pRight, float* pTop, float* pBottom)
+bool SDK::IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* pLeft, float* pRight, float* pTop, float* pBottom, bool bAll)
 {
-	Vec3 vMins = pEntity->m_vecMins(), vMaxs = pEntity->m_vecMaxs();
-
-	bool bInit = false;
 	float flLeft = 0.f, flRight = 0.f, flTop = 0.f, flBottom = 0.f;
 
+	Vec3 vMins = pEntity->m_vecMins(), vMaxs = pEntity->m_vecMaxs();
 	const Vec3 vPoints[] = {
 		Vec3(0.f, 0.f, vMins.z),
 		Vec3(0.f, 0.f, vMaxs.z),
@@ -223,21 +245,26 @@ bool SDK::IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* p
 		Vec3(vMaxs.x, vMins.y, (vMins.z + vMaxs.z) * 0.5f),
 		Vec3(vMaxs.x, vMaxs.y, (vMins.z + vMaxs.z) * 0.5f)
 	};
+
+	bool bInit = false;
 	for (int n = 0; n < 6; n++)
 	{
 		Vec3 vPoint; Math::VectorTransform(vPoints[n], mTransform, vPoint);
 
-		Vec3 vScreenPos;
-		if (!W2S(vPoint, vScreenPos))
+		Vec3 vScreen;
+		if (!W2S(vPoint, vScreen))
+		{
+			if (bAll)
+				return false;
 			continue;
+		}
 
-		flLeft = bInit ? std::min(flLeft, vScreenPos.x) : vScreenPos.x;
-		flRight = bInit ? std::max(flRight, vScreenPos.x) : vScreenPos.x;
-		flTop = bInit ? std::max(flTop, vScreenPos.y) : vScreenPos.y;
-		flBottom = bInit ? std::min(flBottom, vScreenPos.y) : vScreenPos.y;
+		flLeft = bInit ? std::min(flLeft, vScreen.x) : vScreen.x;
+		flRight = bInit ? std::max(flRight, vScreen.x) : vScreen.x;
+		flTop = bInit ? std::max(flTop, vScreen.y) : vScreen.y;
+		flBottom = bInit ? std::min(flBottom, vScreen.y) : vScreen.y;
 		bInit = true;
 	}
-
 	if (!bInit)
 		return false;
 
@@ -249,13 +276,11 @@ bool SDK::IsOnScreen(CBaseEntity* pEntity, const matrix3x4& mTransform, float* p
 	return !(flRight < 0 || flLeft > H::Draw.m_nScreenW || flTop < 0 || flBottom > H::Draw.m_nScreenH);
 }
 
-bool SDK::IsOnScreen(CBaseEntity* pEntity, Vec3 vOrigin)
+bool SDK::IsOnScreen(CBaseEntity* pEntity, Vec3 vOrigin, bool bAll)
 {
-	Vec3 vMins = pEntity->m_vecMins(), vMaxs = pEntity->m_vecMaxs();
-
-	bool bInit = false;
 	float flLeft = 0.f, flRight = 0.f, flTop = 0.f, flBottom = 0.f;
 
+	Vec3 vMins = pEntity->m_vecMins(), vMaxs = pEntity->m_vecMaxs();
 	const Vec3 vPoints[] = {
 		Vec3(0.f, 0.f, vMins.z),
 		Vec3(0.f, 0.f, vMaxs.z),
@@ -264,21 +289,26 @@ bool SDK::IsOnScreen(CBaseEntity* pEntity, Vec3 vOrigin)
 		Vec3(vMaxs.x, vMins.y, (vMins.z + vMaxs.z) * 0.5f),
 		Vec3(vMaxs.x, vMaxs.y, (vMins.z + vMaxs.z) * 0.5f)
 	};
+
+	bool bInit = false;
 	for (int n = 0; n < 6; n++)
 	{
 		Vec3 vPoint = vOrigin + vPoints[n];
 
-		Vec3 vScreenPos;
-		if (!W2S(vPoint, vScreenPos))
+		Vec3 vScreen;
+		if (!W2S(vPoint, vScreen))
+		{
+			if (bAll)
+				return false;
 			continue;
+		}
 
-		flLeft = bInit ? std::min(flLeft, vScreenPos.x) : vScreenPos.x;
-		flRight = bInit ? std::max(flRight, vScreenPos.x) : vScreenPos.x;
-		flTop = bInit ? std::max(flTop, vScreenPos.y) : vScreenPos.y;
-		flBottom = bInit ? std::min(flBottom, vScreenPos.y) : vScreenPos.y;
+		flLeft = bInit ? std::min(flLeft, vScreen.x) : vScreen.x;
+		flRight = bInit ? std::max(flRight, vScreen.x) : vScreen.x;
+		flTop = bInit ? std::max(flTop, vScreen.y) : vScreen.y;
+		flBottom = bInit ? std::min(flBottom, vScreen.y) : vScreen.y;
 		bInit = true;
 	}
-
 	if (!bInit)
 		return false;
 
@@ -296,32 +326,32 @@ bool SDK::IsOnScreen(CBaseEntity* pEntity, bool bShouldGetOwner)
 	return IsOnScreen(pEntity, pEntity->entindex() == I::EngineClient->GetLocalPlayer() && !I::EngineClient->IsPlayingDemo() ? F::EnginePrediction.m_vOrigin : pEntity->GetAbsOrigin());
 }
 
-void SDK::Trace(const Vec3& vecStart, const Vec3& vecEnd, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace)
+void SDK::Trace(const Vec3& vStart, const Vec3& vEnd, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace)
 {
 	Ray_t ray;
-	ray.Init(vecStart, vecEnd);
+	ray.Init(vStart, vEnd);
 	I::EngineTrace->TraceRay(ray, nMask, pFilter, pTrace);
 
 #ifdef DEBUG_TRACES
 	if (Vars::Debug::VisualizeTraces.Value)
-		G::LineStorage.emplace_back(std::pair<Vec3, Vec3>(vecStart, Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vecEnd), I::GlobalVars->curtime + 0.015f, Color_t(), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
+		G::LineStorage.emplace_back(std::pair<Vec3, Vec3>(vStart, Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vEnd), I::GlobalVars->curtime + 0.015f, Color_t(), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
 #endif
 }
 
-void SDK::TraceHull(const Vec3& vecStart, const Vec3& vecEnd, const Vec3& vecHullMin, const Vec3& vecHullMax, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace)
+void SDK::TraceHull(const Vec3& vStart, const Vec3& vEnd, const Vec3& vHullMin, const Vec3& vHullMax, unsigned int nMask, ITraceFilter* pFilter, CGameTrace* pTrace)
 {
 	Ray_t ray;
-	ray.Init(vecStart, vecEnd, vecHullMin, vecHullMax);
+	ray.Init(vStart, vEnd, vHullMin, vHullMax);
 	I::EngineTrace->TraceRay(ray, nMask, pFilter, pTrace);
 
 #ifdef DEBUG_TRACES
 	if (Vars::Debug::VisualizeTraces.Value)
 	{
-		G::LineStorage.emplace_back(std::pair<Vec3, Vec3>(vecStart, Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vecEnd), I::GlobalVars->curtime + 0.015f, Color_t(), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
-		if (!(vecHullMax - vecHullMin).IsZero())
+		G::LineStorage.emplace_back(std::pair<Vec3, Vec3>(vStart, Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vEnd), I::GlobalVars->curtime + 0.015f, Color_t(), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
+		if (!(vHullMax - vHullMin).IsZero())
 		{
-			G::BoxStorage.emplace_back(vecStart, vecHullMin, vecHullMax, Vec3(), I::GlobalVars->curtime + 0.015f, Color_t(), Color_t(0, 0, 0, 0), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
-			G::BoxStorage.emplace_back(Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vecEnd, vecHullMin, vecHullMax, Vec3(), I::GlobalVars->curtime + 0.015f, Color_t(), Color_t(0, 0, 0, 0), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
+			G::BoxStorage.emplace_back(vStart, vHullMin, vHullMax, Vec3(), I::GlobalVars->curtime + 0.015f, Color_t(), Color_t(0, 0, 0, 0), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
+			G::BoxStorage.emplace_back(Vars::Debug::VisualizeTraceHits.Value ? pTrace->endpos : vEnd, vHullMin, vHullMax, Vec3(), I::GlobalVars->curtime + 0.015f, Color_t(), Color_t(0, 0, 0, 0), bool(GetAsyncKeyState(VK_MENU) & 0x8000));
 		}
 	}
 #endif
@@ -605,7 +635,7 @@ int SDK::IsAttacking(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, const CUserCmd* 
 		CGameTrace trace = {};
 		CTraceFilterHitscan filter = {};
 		filter.pSkip = pLocal;
-		static auto tf_grapplinghook_max_distance = U::ConVars.FindVar("tf_grapplinghook_max_distance");
+		static auto tf_grapplinghook_max_distance = H::ConVars.FindVar("tf_grapplinghook_max_distance");
 		const float flGrappleDistance = tf_grapplinghook_max_distance->GetFloat();
 		Trace(vPos, vPos + vForward * flGrappleDistance, MASK_SOLID, &filter, &trace);
 		return trace.DidHit() && !(trace.surface.flags & SURF_SKY);
@@ -771,8 +801,8 @@ void SDK::WalkTo(CUserCmd* pCmd, CTFPlayer* pLocal, Vec3& vTo, float flScale)
 
 void SDK::GetProjectileFireSetup(CTFPlayer* pPlayer, const Vec3& vAngIn, Vec3 vOffset, Vec3& vPosOut, Vec3& vAngOut, bool bPipes, bool bInterp, bool bAllowFlip)
 {
-	static auto cl_flipviewmodels = U::ConVars.FindVar("cl_flipviewmodels");
-	if (bAllowFlip && cl_flipviewmodels->GetBool())
+	static auto cl_flipviewmodels = H::ConVars.FindVar("cl_flipviewmodels");
+	if (bAllowFlip && FNV1A::Hash32(cl_flipviewmodels->GetString()) == FNV1A::Hash32Const("1"))
 		vOffset.y *= -1.f;
 
 	const Vec3 vShootPos = bInterp ? pPlayer->GetEyePosition() : pPlayer->GetShootPos();
